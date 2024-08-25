@@ -2,6 +2,7 @@ package db
 
 import (
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
+	"encoding/json"
 	"fmt"
 	"gorm.io/datatypes"
 	"math"
@@ -24,6 +25,23 @@ type Certificate struct {
 	Base64Content string
 	Meta          datatypes.JSON `gorm:"type:json"`
 	Discoveries   []Discovery    `gorm:"many2many:discovery_certificates;"`
+}
+
+// Marshal your MetadataAttribute array to JSON for storing in the Meta field
+func (d *Discovery) SetMeta(attributes []model.MetadataAttribute) error {
+	jsonData, err := json.Marshal(attributes)
+	if err != nil {
+		return err
+	}
+	d.Meta = jsonData
+	return nil
+}
+
+// Unmarshal your JSON data from the Meta field into a MetadataAttribute array
+func (d *Discovery) GetMeta() ([]model.MetadataAttribute, error) {
+	attributes := model.UnmarshalAttributes(nil, d.Meta)
+	fmt.Println(attributes)
+	return nil, nil
 }
 
 type DiscoveryRepository struct {
