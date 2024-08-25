@@ -6,7 +6,6 @@ import (
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/sslmate"
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/utils"
 	"context"
-	"fmt"
 	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"net/http"
@@ -62,20 +61,21 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 		Certificates: nil,
 	}
 
+	domainData := ""
 	domain := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_DOMAIN_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
 	if domain.GetContent()[0] == nil {
-		fmt.Printf("Domain attribute not found\n")
+		s.log.With(zax.Get(ctx)...).Info("Domain attribute not found")
 	} else {
-		fmt.Printf("Domain: %s\n", domain.GetContent()[0].GetData().(string))
+		domainData = domain.GetContent()[0].GetData().(string)
 	}
 
 	apiKeyData := ""
 	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_API_KEY_UUID, discoveryRequestDto.Attributes) != nil {
 		apiKey := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_API_KEY_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
-		if apiKey.GetContent()[0] == nil {
-			fmt.Printf("API Key attribute not found\n")
+		if apiKey.GetContent()[0].(model.CredentialAttributeContent).GetData().(model.CredentialAttributeContentData).Kind != "ApiKey" {
+			s.log.With(zax.Get(ctx)...).Info("Incompatible credential type, ApiKey expected", zap.String("kind", apiKey.GetContent()[0].(model.CredentialAttributeContent).GetData().(model.CredentialAttributeContentData).Kind))
 		} else {
-			apiKeyData = apiKey.GetContent()[0].(model.SecretAttributeContent).GetData().(model.SecretAttributeContentData).Secret
+			apiKeyData = model.GetApiKeyFromAttribute(apiKey)
 		}
 	}
 
@@ -85,7 +85,7 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 	}
 
 	s.log.With(zax.Get(ctx)...).Info("Starting discovery of certificates", zap.String("discovery_uuid", discovery.UUID))
-	go s.DiscoveryCertificates(ctx, discovery, domain.GetContent()[0].GetData().(string), apiKeyData)
+	go s.DiscoveryCertificates(ctx, discovery, domainData, apiKeyData)
 
 	return model.Response(http.StatusOK, response), nil
 }

@@ -3,8 +3,10 @@ package model
 import (
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/logger"
 	"encoding/json"
+	"fmt"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
+	"strings"
 )
 
 var log = logger.Get()
@@ -119,7 +121,7 @@ func unmarshalAttributeContent(content []byte, contentType AttributeContentType)
 			Data:      map[string]interface{}{"objectData": stringData.Data},
 		}
 		if err != nil {
-			log.Error(err.Error(), zap.String("content", string(content)))
+			log.Warn(err.Error(), zap.String("content", string(content)))
 			objectData := ObjectAttributeContent{}
 			err := json.Unmarshal(content, &objectData)
 			if err != nil {
@@ -147,28 +149,50 @@ func unmarshalAttributeContent(content []byte, contentType AttributeContentType)
 			},
 		}
 		if err != nil {
-			log.Error(err.Error(), zap.String("content", string(content)))
+			// log.Warn(err.Error(), zap.String("content", string(content)))
 			secretData := SecretAttributeContent{}
 			err := json.Unmarshal(content, &secretData)
 			if err != nil {
-				log.Error(err.Error(), zap.String("content", string(content)))
+				log.Debug(err.Error(), zap.String("content", string(content)))
+				log.Error(err.Error())
 			}
 			result = secretData
 		}
 
 	case CREDENTIAL: // we assume here to get only ApiKey as secret attribute content
-		secretContents := gjson.GetBytes(content, "data.attributes.0.content")
+		credentialContent := CredentialAttributeContent{}
+		err := json.Unmarshal(content, &credentialContent)
 
-		// take the first secret content
-		secretContent := secretContents.Array()[0]
-		
-		byteContent := []byte(secretContent.Raw)
-		secretDataContent := SecretAttributeContent{}
-		err := json.Unmarshal(byteContent, &secretDataContent)
-		result = secretDataContent
-		if err != nil {
-			log.Error(err.Error(), zap.String("content", string(byteContent)))
+		// credential content has nested attributes with content
+		for i, attr := range credentialContent.Data.Attributes {
+			attrContents := gjson.GetBytes(content, fmt.Sprintf("data.attributes.%d.content", i))
+			for _, attrContent := range attrContents.Array() {
+				credentialContent.Data.Attributes[i].Content[i] = unmarshalAttributeContent([]byte(attrContent.Raw), attr.ContentType)
+				//attr.Content = append(attr.Content, unmarshalAttributeContent([]byte(attrContent.Raw), attr.ContentType))
+			}
 		}
+
+		result = credentialContent
+		if err != nil {
+			// TODO:  json: cannot unmarshal object into Go struct field DataAttribute.data.attributes.content of type model.AttributeContent
+			// if error message contains this string, then we have a problem with unmarshalling the content
+			if !strings.HasPrefix(err.Error(), "json: cannot unmarshal object into Go struct field DataAttribute.data.attributes.content of type model.AttributeContent") {
+				log.Error(err.Error(), zap.String("content", string(content)))
+			}
+		}
+
+		//secretContents := gjson.GetBytes(content, "data.attributes.0.content")
+		//
+		//// take the first secret content
+		//secretContent := secretContents.Array()[0]
+		//
+		//byteContent := []byte(secretContent.Raw)
+		//secretDataContent := SecretAttributeContent{}
+		//err := json.Unmarshal(byteContent, &secretDataContent)
+		//result = secretDataContent
+		//if err != nil {
+		//	log.Error(err.Error(), zap.String("content", string(byteContent)))
+		//}
 	}
 
 	return result
@@ -272,8 +296,9 @@ func GetAttributeFromArrayByUUID(uuid string, attributes []Attribute) Attribute 
 	return nil
 }
 
-func GetApiKeyFromAttribute(attribute CredentialAttributeContentData) string {
-	return attribute.Attributes[0].Content[0].GetData().(string)
+func GetApiKeyFromAttribute(attribute DataAttribute) string {
+	credentialContentData := attribute.GetContent()[0].(CredentialAttributeContent).GetData().(CredentialAttributeContentData)
+	return credentialContentData.Attributes[0].GetContent()[0].(SecretAttributeContent).GetData().(SecretAttributeContentData).Secret
 }
 
 func getDiscoveryAttributes() []Attribute {
