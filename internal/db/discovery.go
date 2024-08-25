@@ -1,10 +1,11 @@
 package db
 
 import (
+	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
 	"fmt"
+	"gorm.io/datatypes"
 	"math"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -12,17 +13,17 @@ type Discovery struct {
 	Id           uint `gorm:"primarykey"`
 	UUID         string
 	Name         string
-	Status       string
-	Meta         datatypes.JSON
-	Certificates []Certificate `gorm:"many2many:discovery_certificates;"`
+	Status       model.DiscoveryStatus
+	Meta         datatypes.JSON `gorm:"type:json"`
+	Certificates []Certificate  `gorm:"many2many:discovery_certificates;"`
 }
 
 type Certificate struct {
 	Id            uint `gorm:"primarykey"`
 	UUID          string
 	Base64Content string
-	Meta          datatypes.JSON
-	Discoveries   []Discovery `gorm:"many2many:discovery_certificates;"`
+	Meta          datatypes.JSON `gorm:"type:json"`
+	Discoveries   []Discovery    `gorm:"many2many:discovery_certificates;"`
 }
 
 type DiscoveryRepository struct {

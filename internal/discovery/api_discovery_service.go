@@ -57,7 +57,7 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 	discovery := &db.Discovery{
 		UUID:         response.Uuid,
 		Name:         response.Name,
-		Status:       string(response.Status),
+		Status:       response.Status,
 		Meta:         nil,
 		Certificates: nil,
 	}
@@ -92,17 +92,17 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 		matchWildcards = matchWildcardsAttribute.GetContent()[0].GetData().(bool)
 	}
 
-	after, err := time.Parse(time.RFC3339, "2013-01-01T00:00:00Z")
+	discoveredFrom, err := time.Parse(time.RFC3339, "2013-01-01T00:00:00Z")
 	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID, discoveryRequestDto.Attributes) != nil {
 		afterAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
-		after = afterAttribute.GetContent()[0].GetData().(time.Time)
+		discoveredFrom = afterAttribute.GetContent()[0].GetData().(time.Time)
 	}
 
 	// for SSLMate API, discovered_before must be at least 15 minutes in the past.
-	before := time.Now()
+	discoveredBefore := time.Now()
 	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID, discoveryRequestDto.Attributes) != nil {
 		beforeAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
-		before = beforeAttribute.GetContent()[0].GetData().(time.Time)
+		discoveredBefore = beforeAttribute.GetContent()[0].GetData().(time.Time)
 	}
 
 	err = s.discoveryRepo.CreateDiscovery(discovery)
@@ -111,7 +111,7 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 	}
 
 	s.log.With(zax.Get(ctx)...).Info("Starting discovery of certificates", zap.String("discovery_uuid", discovery.UUID), zap.String("discovery_name", discovery.Name))
-	go s.DiscoveryCertificates(ctx, discovery, domainData, apiKeyData, includeSubdomains, matchWildcards, after, before)
+	go s.DiscoveryCertificates(ctx, discovery, domainData, apiKeyData, includeSubdomains, matchWildcards, discoveredFrom, discoveredBefore)
 
 	return model.Response(http.StatusOK, response), nil
 }
@@ -122,8 +122,11 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 	if err != nil {
 		return model.Response(http.StatusNotFound, model.ErrorMessageDto{Message: "Discovery " + uuid + " not found."}), nil
 	}
-	if discovery.Status == "IN_PROGRESS" {
+	if discovery.Status == model.IN_PROGRESS {
 		return model.Response(http.StatusOK, model.DiscoveryProviderDto{Uuid: discovery.UUID, Name: discovery.Name, Status: model.IN_PROGRESS, TotalCertificatesDiscovered: 0, CertificateData: nil, Meta: nil}), nil
+	}
+	if discovery.Status == model.FAILED {
+		return model.Response(http.StatusOK, model.DiscoveryProviderDto{Uuid: discovery.UUID, Name: discovery.Name, Status: model.FAILED, TotalCertificatesDiscovered: 0, CertificateData: nil, Meta: discovery.Meta}), nil
 	} else {
 		pagination := db.Pagination{
 			Page:  int(discoveryDataRequestDto.PageNumber),
@@ -145,7 +148,7 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 
 }
 
-func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discovery *db.Discovery, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, after time.Time, before time.Time) {
+func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discovery *db.Discovery, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, discoveredFrom time.Time, discoveredBefore time.Time) {
 	// get the client
 	clientConfig := sslmate.NewConfiguration()
 	clientConfig.UserAgent = "CZERTAINLY-CT-Logs-Discovery-Provider"
@@ -154,48 +157,60 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	}
 	client := sslmate.NewAPIClient(clientConfig)
 
-	response, _, err := client.CTSearchV1APIService.GetIssuances(ctx, s.log, domain, apiKey, includeSubdomains, matchWildcards, after, before).Execute()
+	after := ""
+	for {
+		response, _, err := client.CTSearchV1APIService.GetIssuances(ctx, s.log, domain, apiKey, includeSubdomains, matchWildcards, after, discoveredFrom, discoveredBefore).Execute()
 
-	if err != nil {
-		s.log.With(zax.Get(ctx)...).Error(err.Error())
-		discovery.Status = "FAILED"
-		err := s.discoveryRepo.UpdateDiscovery(discovery)
 		if err != nil {
-			s.log.With(zax.Get(ctx)...).Error(err.Error())
-		}
-		return
-	}
-
-	if response != nil {
-		var certificateKeys []*db.Certificate
-		for _, issuance := range *response {
-			certDer := issuance.GetCertDer()
-			// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
-			certificate := db.Certificate{
-				UUID:          utils.DeterministicGUID(certDer),
-				Base64Content: certDer,
+			s.log.With(zax.Get(ctx)...).Error(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
+			discovery.Status = model.FAILED
+			meta := model.CreateFailureReasonMetadataAttribute(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
+			metaAttributes := []model.MetadataAttribute{
+				meta,
 			}
-			certificateKeys = append(certificateKeys, &certificate)
-		}
-		err = s.discoveryRepo.AssociateCertificatesToDiscovery(discovery, certificateKeys...)
-		if err != nil {
-			discovery.Status = "FAILED"
-			s.log.With(zax.Get(ctx)...).Error(err.Error())
+			discovery.SetMeta(metaAttributes)
 			err := s.discoveryRepo.UpdateDiscovery(discovery)
 			if err != nil {
 				s.log.With(zax.Get(ctx)...).Error(err.Error())
 			}
 			return
 		}
-	} else {
-		s.log.With(zax.Get(ctx)...).Info("No issuance objects found.")
+
+		if response != nil && len(*response) > 0 {
+			var certificateKeys []*db.Certificate
+			for _, issuance := range *response {
+				certDer := issuance.GetCertDer()
+				// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
+				certificate := db.Certificate{
+					UUID:          utils.DeterministicGUID(certDer),
+					Base64Content: certDer,
+				}
+				certificateKeys = append(certificateKeys, &certificate)
+			}
+			err = s.discoveryRepo.AssociateCertificatesToDiscovery(discovery, certificateKeys...)
+			if err != nil {
+				discovery.Status = model.FAILED
+				s.log.With(zax.Get(ctx)...).Error(err.Error())
+				err := s.discoveryRepo.UpdateDiscovery(discovery)
+				if err != nil {
+					s.log.With(zax.Get(ctx)...).Error(err.Error())
+				}
+				return
+			}
+			// get the last issuance object
+			lastIssuance := (*response)[len(*response)-1]
+			after = lastIssuance.GetId()
+		} else {
+			s.log.With(zax.Get(ctx)...).Info("No additional issuance objects found.")
+			break
+		}
 	}
 
 	// Update discovery status to "COMPLETED"
-	discovery.Status = "COMPLETED"
-	err = s.discoveryRepo.UpdateDiscovery(discovery)
+	discovery.Status = model.COMPLETED
+	err := s.discoveryRepo.UpdateDiscovery(discovery)
 	if err != nil {
-		discovery.Status = "FAILED"
+		discovery.Status = model.FAILED
 		s.log.With(zax.Get(ctx)...).Error(err.Error())
 		err := s.discoveryRepo.UpdateDiscovery(discovery)
 		if err != nil {

@@ -21,8 +21,9 @@ type ApiGetIssuancesRequest struct {
 	apiKey            string
 	includeSubdomains bool
 	matchWildcards    bool
-	after             time.Time
-	before            time.Time
+	after             string
+	discoveredFrom    time.Time
+	discoveredBefore  time.Time
 }
 
 func (r ApiGetIssuancesRequest) Execute() (*[]IssuanceObject, *http.Response, error) {
@@ -36,7 +37,7 @@ GetIssuances List all unexpired certificate issuances for a domain.
 	@param domain Domain name
 	@return ApiGetCertificateRequest
 */
-func (a *CTSearchV1APIService) GetIssuances(ctx context.Context, logger *zap.Logger, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, after time.Time, before time.Time) ApiGetIssuancesRequest {
+func (a *CTSearchV1APIService) GetIssuances(ctx context.Context, logger *zap.Logger, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, after string, discoveredFrom time.Time, discoveredBefore time.Time) ApiGetIssuancesRequest {
 	return ApiGetIssuancesRequest{
 		ApiService:        a,
 		ctx:               ctx,
@@ -46,7 +47,8 @@ func (a *CTSearchV1APIService) GetIssuances(ctx context.Context, logger *zap.Log
 		includeSubdomains: includeSubdomains,
 		matchWildcards:    matchWildcards,
 		after:             after,
-		before:            before,
+		discoveredFrom:    discoveredFrom,
+		discoveredBefore:  discoveredBefore,
 	}
 }
 
@@ -72,9 +74,10 @@ func (a *CTSearchV1APIService) GetIssuancesExecute(r ApiGetIssuancesRequest) (*[
 	parameterAddToHeaderOrQuery(localVarQueryParams, "domain", r.domain, "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "include_subdomains", r.includeSubdomains, "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "match_wildcards", r.matchWildcards, "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_from", r.after.Format(time.RFC3339), "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_before", r.before.Format(time.RFC3339), "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_from", r.discoveredFrom.Format(time.RFC3339), "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_before", r.discoveredBefore.Format(time.RFC3339), "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "expand", "cert_der", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "after", r.after, "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 

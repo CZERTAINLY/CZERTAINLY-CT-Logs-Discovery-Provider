@@ -1,5 +1,7 @@
 package model
 
+import "gorm.io/datatypes"
+
 type DiscoveryProviderDto struct {
 
 	// Object identifier
@@ -17,7 +19,7 @@ type DiscoveryProviderDto struct {
 	CertificateData []DiscoveryProviderCertificateDataDto `json:"certificateData"`
 
 	// Certificate Metadata
-	Meta []MetadataAttribute `json:"meta"`
+	Meta datatypes.JSON `json:"meta"`
 }
 
 // AssertDiscoveryProviderDtoRequired checks if the required fields are not zero-ed
@@ -35,16 +37,16 @@ func AssertDiscoveryProviderDtoRequired(obj DiscoveryProviderDto) error {
 		}
 	}
 
-	for _, el := range obj.CertificateData {
-		if err := AssertDiscoveryProviderCertificateDataDtoRequired(el); err != nil {
-			return err
-		}
-	}
-	for _, el := range obj.Meta {
-		if err := AssertMetadataAttributeRequired(el); err != nil {
-			return err
-		}
-	}
+	//for _, el := range obj.CertificateData {
+	//	if err := AssertDiscoveryProviderCertificateDataDtoRequired(el); err != nil {
+	//		return err
+	//	}
+	//}
+	//for _, el := range obj.Meta {
+	//	if err := AssertMetadataAttributeRequired(el); err != nil {
+	//		return err
+	//	}
+	//}
 	return nil
 }
 

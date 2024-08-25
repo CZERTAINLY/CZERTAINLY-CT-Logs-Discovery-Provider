@@ -52,6 +52,11 @@ const (
 	DISCOVERY_DATA_ATTRIBUTE_BEFORE_NAME        string = "data_before"
 	DISCOVERY_DATA_ATTRIBUTE_BEFORE_LABEL       string = "Before"
 	DISCOVERY_DATA_ATTRIBUTE_BEFORE_DESCRIPTION string = "Discover only issuances that were logged before this date (exclusive). By default, all issuances are discovered."
+
+	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_UUID        string = "8929217a-c42b-4eee-995f-c999cf7d1f12"
+	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_NAME        string = "metadata_failureReason"
+	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_LABEL       string = "Failure Reason"
+	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_DESCRIPTION string = "Reason for the failure of the discovery process."
 )
 
 type AttributeName string
@@ -266,6 +271,26 @@ func unmarshalAttribute(ctx context.Context, content []byte, attrDef AttributeDe
 			}
 		}
 		result = data
+
+	case META:
+		meta := MetadataAttribute{}
+		contents := gjson.GetBytes(content, "content")
+		for _, content := range contents.Array() {
+			meta.Content = append(meta.Content, unmarshalAttributeContent(ctx, []byte(content.Raw), attrDef.AttributeContentType))
+		}
+		meta.Uuid = gjson.GetBytes(content, "uuid").String()
+		meta.Name = gjson.GetBytes(content, "name").String()
+		meta.Description = gjson.GetBytes(content, "description").String()
+		meta.Type = attrDef.AttributeType
+		meta.ContentType = attrDef.AttributeContentType
+		properties := gjson.GetBytes(content, "properties").Raw
+		if properties != "" {
+			err := json.Unmarshal([]byte(properties), &meta.Properties)
+			if err != nil {
+				log.Error(err.Error(), zap.String("content", string(content)))
+			}
+		}
+		result = meta
 	}
 
 	return result
@@ -330,6 +355,28 @@ func GetAttributeFromArrayByUUID(uuid string, attributes []Attribute) Attribute 
 func GetApiKeyFromAttribute(attribute DataAttribute) string {
 	credentialContentData := attribute.GetContent()[0].(CredentialAttributeContent).GetData().(CredentialAttributeContentData)
 	return credentialContentData.Attributes[0].GetContent()[0].(SecretAttributeContent).GetData().(SecretAttributeContentData).Secret
+}
+
+func CreateFailureReasonMetadataAttribute(failureReason string) MetadataAttribute {
+	return MetadataAttribute{
+		Uuid:        DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_UUID,
+		Name:        DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_NAME,
+		Description: DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_DESCRIPTION,
+		Type:        META,
+		Content: []AttributeContent{
+			StringAttributeContent{
+				Reference: "failureReason",
+				Data:      failureReason,
+			},
+		},
+		ContentType: STRING,
+		Properties: &MetadataAttributeProperties{
+			Label:   DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_LABEL,
+			Visible: true,
+			Group:   "",
+			Global:  false,
+		},
+	}
 }
 
 func getDiscoveryAttributes() []Attribute {

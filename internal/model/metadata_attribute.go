@@ -19,7 +19,7 @@ type MetadataAttribute struct {
 
 	ContentType AttributeContentType `json:"contentType"`
 
-	Properties MetadataAttributeProperties `json:"properties"`
+	Properties *MetadataAttributeProperties `json:"properties"`
 }
 
 func (d MetadataAttribute) GetContent() []AttributeContent {
@@ -58,14 +58,14 @@ func AssertMetadataAttributeRequired(obj Attribute) error {
 		}
 	}
 
-	for _, el := range objType.Content {
-		if err := AssertBaseAttributeContentDtoRequired(el); err != nil {
-			return err
-		}
-	}
-	if err := AssertMetadataAttributePropertiesRequired(objType.Properties); err != nil {
-		return err
-	}
+	//for _, el := range objType.Content {
+	//	if err := AssertBaseAttributeContentDtoRequired(el); err != nil {
+	//		return err
+	//	}
+	//}
+	//if err := AssertMetadataAttributePropertiesRequired(objType.Properties); err != nil {
+	//	return err
+	//}
 	return nil
 }
 

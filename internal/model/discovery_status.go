@@ -37,6 +37,10 @@ func (v DiscoveryStatus) IsValid() bool {
 	return ok
 }
 
+func (v DiscoveryStatus) String() string {
+	return string(v)
+}
+
 // NewDiscoveryStatusFromValue returns a pointer to a valid DiscoveryStatus
 // for the value passed as argument, or an error if the value passed is not allowed by the enum
 func NewDiscoveryStatusFromValue(v string) (DiscoveryStatus, error) {
