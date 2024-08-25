@@ -9,6 +9,7 @@ import (
 	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 // DiscoveryAPIService is a service that implements the logic for the DiscoveryAPIServicer
@@ -79,13 +80,38 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 		}
 	}
 
-	err := s.discoveryRepo.CreateDiscovery(discovery)
-	if err != nil {
-		return model.Response(http.StatusNotFound, model.ErrorMessageDto{Message: "Unable to create discovery " + discovery.UUID}), nil
+	includeSubdomains := false
+	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_UUID, discoveryRequestDto.Attributes) != nil {
+		includeSubdomainsAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
+		includeSubdomains = includeSubdomainsAttribute.GetContent()[0].GetData().(bool)
 	}
 
-	s.log.With(zax.Get(ctx)...).Info("Starting discovery of certificates", zap.String("discovery_uuid", discovery.UUID))
-	go s.DiscoveryCertificates(ctx, discovery, domainData, apiKeyData)
+	matchWildcards := false
+	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_UUID, discoveryRequestDto.Attributes) != nil {
+		matchWildcardsAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
+		matchWildcards = matchWildcardsAttribute.GetContent()[0].GetData().(bool)
+	}
+
+	after, err := time.Parse(time.RFC3339, "2013-01-01T00:00:00Z")
+	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID, discoveryRequestDto.Attributes) != nil {
+		afterAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
+		after = afterAttribute.GetContent()[0].GetData().(time.Time)
+	}
+
+	// for SSLMate API, discovered_before must be at least 15 minutes in the past.
+	before := time.Now()
+	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID, discoveryRequestDto.Attributes) != nil {
+		beforeAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
+		before = beforeAttribute.GetContent()[0].GetData().(time.Time)
+	}
+
+	err = s.discoveryRepo.CreateDiscovery(discovery)
+	if err != nil {
+		return model.Response(http.StatusNotFound, model.ErrorMessageDto{Message: "Unable to create discovery " + discovery.UUID + ", " + err.Error()}), nil
+	}
+
+	s.log.With(zax.Get(ctx)...).Info("Starting discovery of certificates", zap.String("discovery_uuid", discovery.UUID), zap.String("discovery_name", discovery.Name))
+	go s.DiscoveryCertificates(ctx, discovery, domainData, apiKeyData, includeSubdomains, matchWildcards, after, before)
 
 	return model.Response(http.StatusOK, response), nil
 }
@@ -119,7 +145,7 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 
 }
 
-func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discovery *db.Discovery, domain string, apiKey string) {
+func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discovery *db.Discovery, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, after time.Time, before time.Time) {
 	// get the client
 	clientConfig := sslmate.NewConfiguration()
 	clientConfig.UserAgent = "CZERTAINLY-CT-Logs-Discovery-Provider"
@@ -128,7 +154,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	}
 	client := sslmate.NewAPIClient(clientConfig)
 
-	response, _, err := client.CTSearchV1APIService.GetIssuances(ctx, domain, apiKey).Execute()
+	response, _, err := client.CTSearchV1APIService.GetIssuances(ctx, s.log, domain, apiKey, includeSubdomains, matchWildcards, after, before).Execute()
 
 	if err != nil {
 		s.log.With(zax.Get(ctx)...).Error(err.Error())
@@ -144,7 +170,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 		var certificateKeys []*db.Certificate
 		for _, issuance := range *response {
 			certDer := issuance.GetCertDer()
-			s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
+			// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
 			certificate := db.Certificate{
 				UUID:          utils.DeterministicGUID(certDer),
 				Base64Content: certDer,

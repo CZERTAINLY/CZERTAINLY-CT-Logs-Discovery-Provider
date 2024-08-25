@@ -40,8 +40,15 @@ func (s *ConnectorAttributesAPIService) ListAttributeDefinitions(ctx context.Con
 	attributes = append(attributes, dataAttribute)
 	dataAttribute = model.GetAttributeDefByUUID(model.DISCOVERY_DATA_ATTRIBUTE_DOMAIN_UUID).(model.DataAttribute)
 	attributes = append(attributes, dataAttribute)
+	dataAttribute = model.GetAttributeDefByUUID(model.DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_UUID).(model.DataAttribute)
+	attributes = append(attributes, dataAttribute)
+	dataAttribute = model.GetAttributeDefByUUID(model.DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_UUID).(model.DataAttribute)
+	attributes = append(attributes, dataAttribute)
+	dataAttribute = model.GetAttributeDefByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID).(model.DataAttribute)
+	attributes = append(attributes, dataAttribute)
+	dataAttribute = model.GetAttributeDefByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID).(model.DataAttribute)
+	attributes = append(attributes, dataAttribute)
 	return model.Response(http.StatusOK, attributes), nil
-
 }
 
 // ValidateAttributes - Validate Attributes

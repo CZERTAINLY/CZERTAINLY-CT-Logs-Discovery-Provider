@@ -17,7 +17,7 @@ type ErrorObject struct {
 	// of messages may change without notice. For a machine-readable code, use the code field.
 	Message string `json:"message"`
 	// The name of the request field that caused the error. Only present if the error is field-specific.
-	Field string `json:"field"`
+	Field string `json:"field,omitempty"`
 	// An array of error objects that describe the problem(s) which caused this error in greater detail.
 	// Only present for some error types. Sub-errors do not have further sub-errors.
 	SubErrors            []ErrorObject `json:"sub_errors,omitempty"`
@@ -149,7 +149,6 @@ func (o *ErrorObject) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"code",
 		"message",
-		"field",
 	}
 
 	allProperties := make(map[string]interface{})

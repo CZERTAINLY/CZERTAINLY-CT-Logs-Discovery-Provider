@@ -9,6 +9,14 @@ type BooleanAttributeContent struct {
 	Data bool `json:"data"`
 }
 
+func (b BooleanAttributeContent) GetData() interface{} {
+	return b.Data
+}
+
+func (b BooleanAttributeContent) GetReference() string {
+	return b.Reference
+}
+
 // AssertBooleanAttributeContentRequired checks if the required fields are not zero-ed
 func AssertBooleanAttributeContentRequired(obj BooleanAttributeContent) error {
 	elements := map[string]interface{}{

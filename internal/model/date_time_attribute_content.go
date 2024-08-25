@@ -13,6 +13,14 @@ type DateTimeAttributeContent struct {
 	Data time.Time `json:"data"`
 }
 
+func (d DateTimeAttributeContent) GetData() interface{} {
+	return d.Data
+}
+
+func (d DateTimeAttributeContent) GetReference() string {
+	return d.Reference
+}
+
 // AssertDateTimeAttributeContentRequired checks if the required fields are not zero-ed
 func AssertDateTimeAttributeContentRequired(obj DateTimeAttributeContent) error {
 	elements := map[string]interface{}{

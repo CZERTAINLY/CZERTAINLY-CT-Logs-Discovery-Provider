@@ -25,13 +25,33 @@ const (
 	DISCOVERY_DATA_ATTRIBUTE_API_KEY_UUID        string = "524fea89-3421-4991-8d12-330cba803773"
 	DISCOVERY_DATA_ATTRIBUTE_API_KEY_NAME        string = "data_apiKey"
 	DISCOVERY_DATA_ATTRIBUTE_API_KEY_LABEL       string = "API Key"
-	DISCOVERY_DATA_ATTRIBUTE_API_KEY_DESCRIPTION string = "SSLMate API Key for your subscription"
+	DISCOVERY_DATA_ATTRIBUTE_API_KEY_DESCRIPTION string = "SSLMate API Key for your subscription. When the API Key is not provided, the connector will use the Free Tier which is limited in the number of requests."
 
 	DISCOVERY_DATA_ATTRIBUTE_DOMAIN_UUID        string = "80ca4681-01a3-45c0-a606-ea46990eba6d"
 	DISCOVERY_DATA_ATTRIBUTE_DOMAIN_NAME        string = "data_domain"
 	DISCOVERY_DATA_ATTRIBUTE_DOMAIN_LABEL       string = "Domain"
 	DISCOVERY_DATA_ATTRIBUTE_DOMAIN_DESCRIPTION string = "Domain for which you want to discover certificates. " +
 		"It must be a registered domain or subordinate to a registered domain. For example, www.example.com and example.com are valid, but com is not."
+
+	DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_UUID        string = "a1367844-566f-4bd6-97a3-2e0aea2c1478"
+	DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_NAME        string = "data_includeSubdomains"
+	DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_LABEL       string = "Include Subdomains"
+	DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_DESCRIPTION string = "Discover issuances that are valid for sub-domains (of any depth) of selected domain. Default is false."
+
+	DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_UUID        string = "73de185d-2bc3-47db-9880-1fe7b5012df6"
+	DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_NAME        string = "data_matchWildcards"
+	DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_LABEL       string = "Match Wildcards"
+	DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_DESCRIPTION string = "Discover issuances for wildcard DNS names that match selected domain. For example, a request for domain=www.example.com&match_wildcards=true will return issuances for *.example.com. Default is false."
+
+	DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID        string = "466b3f0f-5365-45b2-bc98-4756f585eb7a"
+	DISCOVERY_DATA_ATTRIBUTE_AFTER_NAME        string = "data_after"
+	DISCOVERY_DATA_ATTRIBUTE_AFTER_LABEL       string = "After"
+	DISCOVERY_DATA_ATTRIBUTE_AFTER_DESCRIPTION string = "Discover only issuances that were logged after this date (inclusive). By default, all issuances are discovered."
+
+	DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID        string = "2293b505-522f-4ded-af57-79bb2a820d6c"
+	DISCOVERY_DATA_ATTRIBUTE_BEFORE_NAME        string = "data_before"
+	DISCOVERY_DATA_ATTRIBUTE_BEFORE_LABEL       string = "Before"
+	DISCOVERY_DATA_ATTRIBUTE_BEFORE_DESCRIPTION string = "Discover only issuances that were logged before this date (exclusive). By default, all issuances are discovered."
 )
 
 type AttributeName string
@@ -160,6 +180,14 @@ func unmarshalAttributeContent(ctx context.Context, content []byte, contentType 
 				log.Error(err.Error())
 			}
 			result = secretData
+		}
+
+	case DATETIME:
+		dateTimeContent := DateTimeAttributeContent{}
+		err := json.Unmarshal(content, &dateTimeContent)
+		result = dateTimeContent
+		if err != nil {
+			log.Error(err.Error(), zap.String("content", string(content)))
 		}
 
 	case CREDENTIAL: // we assume here to get only ApiKey as secret attribute content
@@ -317,6 +345,13 @@ func getDiscoveryAttributes() []Attribute {
 
 This connector allows you to discover certificates from Certificate Transparency (CT) Logs using SSLMate service.
 For more information about SSLMate, please visit [SSLMate website](https://sslmate.com/).
+
+You can discover certificates by providing the domain name and optionally the API Key for your SSLMate subscription.
+When the API Key is not provided, the connector will use the Free Tier which is limited in the number of requests.
+
+You can discover certificates for a specific time range, include subdomains, and match wildcards.
+By default the connector will discover all certificates for the provided domain that are logged in the CT Logs.
+You can restrict the discovery to certificates that were logged after a specific date or before a specific date.
 `,
 				},
 			},
@@ -382,6 +417,83 @@ For more information about SSLMate, please visit [SSLMate website](https://sslma
 				},
 			},
 		},
+		DataAttribute{
+			Uuid:        DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_UUID,
+			Name:        DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_NAME,
+			Description: DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_DESCRIPTION,
+			Type:        DATA,
+			Content: []AttributeContent{
+				BooleanAttributeContent{
+					Reference: "",
+					Data:      false,
+				},
+			},
+			ContentType: BOOLEAN,
+			Properties: &DataAttributeProperties{
+				Label:       DISCOVERY_DATA_ATTRIBUTE_INCLUDE_SUBDOMAINS_LABEL,
+				Visible:     true,
+				Group:       "",
+				Required:    false,
+				ReadOnly:    false,
+				List:        false,
+				MultiSelect: false,
+			},
+		},
+		DataAttribute{
+			Uuid:        DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_UUID,
+			Name:        DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_NAME,
+			Description: DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_DESCRIPTION,
+			Type:        DATA,
+			Content: []AttributeContent{
+				BooleanAttributeContent{
+					Reference: "",
+					Data:      false,
+				},
+			},
+			ContentType: BOOLEAN,
+			Properties: &DataAttributeProperties{
+				Label:       DISCOVERY_DATA_ATTRIBUTE_MATCH_WILDCARDS_LABEL,
+				Visible:     true,
+				Group:       "",
+				Required:    false,
+				ReadOnly:    false,
+				List:        false,
+				MultiSelect: false,
+			},
+		},
+		DataAttribute{
+			Uuid:        DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID,
+			Name:        DISCOVERY_DATA_ATTRIBUTE_AFTER_NAME,
+			Description: DISCOVERY_DATA_ATTRIBUTE_AFTER_DESCRIPTION,
+			Type:        DATA,
+			Content:     nil,
+			ContentType: DATETIME,
+			Properties: &DataAttributeProperties{
+				Label:       DISCOVERY_DATA_ATTRIBUTE_AFTER_LABEL,
+				Visible:     true,
+				Group:       "",
+				Required:    false,
+				ReadOnly:    false,
+				List:        false,
+				MultiSelect: false,
+			},
+		},
+		DataAttribute{
+			Uuid:        DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID,
+			Name:        DISCOVERY_DATA_ATTRIBUTE_BEFORE_NAME,
+			Description: DISCOVERY_DATA_ATTRIBUTE_BEFORE_DESCRIPTION,
+			Type:        DATA,
+			Content:     nil,
+			ContentType: DATETIME,
+			Properties: &DataAttributeProperties{
+				Label:       DISCOVERY_DATA_ATTRIBUTE_BEFORE_LABEL,
+				Visible:     true,
+				Group:       "",
+				Required:    false,
+				ReadOnly:    false,
+				List:        false,
+				MultiSelect: false,
+			},
+		},
 	}
-
 }

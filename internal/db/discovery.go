@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"math"
 
 	"gorm.io/datatypes"
@@ -33,7 +34,13 @@ func NewDiscoveryRepository(db *gorm.DB) (*DiscoveryRepository, error) {
 }
 
 func (d *DiscoveryRepository) CreateDiscovery(discovery *Discovery) error {
-	result := d.db.Create(&discovery)
+	var exisitngDiscovery Discovery
+	result := d.db.First(&exisitngDiscovery, "name = ?", discovery.Name)
+	if exisitngDiscovery.Name != "" {
+		return fmt.Errorf("discovery instance with name %s already exists", discovery.Name)
+	}
+
+	result = d.db.Create(&discovery)
 	if result.Error != nil {
 		return result.Error
 	}

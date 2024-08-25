@@ -3,18 +3,26 @@ package sslmate
 import (
 	"bytes"
 	"context"
+	"github.com/yuseferi/zax/v2"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type CTSearchV1APIService service
 
 type ApiGetIssuancesRequest struct {
-	ctx        context.Context
-	ApiService *CTSearchV1APIService
-	domain     string
-	apiKey     string
+	ctx               context.Context
+	log               *zap.Logger
+	ApiService        *CTSearchV1APIService
+	domain            string
+	apiKey            string
+	includeSubdomains bool
+	matchWildcards    bool
+	after             time.Time
+	before            time.Time
 }
 
 func (r ApiGetIssuancesRequest) Execute() (*[]IssuanceObject, *http.Response, error) {
@@ -28,12 +36,17 @@ GetIssuances List all unexpired certificate issuances for a domain.
 	@param domain Domain name
 	@return ApiGetCertificateRequest
 */
-func (a *CTSearchV1APIService) GetIssuances(ctx context.Context, domain string, apiKey string) ApiGetIssuancesRequest {
+func (a *CTSearchV1APIService) GetIssuances(ctx context.Context, logger *zap.Logger, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, after time.Time, before time.Time) ApiGetIssuancesRequest {
 	return ApiGetIssuancesRequest{
-		ApiService: a,
-		ctx:        ctx,
-		domain:     domain,
-		apiKey:     apiKey,
+		ApiService:        a,
+		ctx:               ctx,
+		log:               logger,
+		domain:            domain,
+		apiKey:            apiKey,
+		includeSubdomains: includeSubdomains,
+		matchWildcards:    matchWildcards,
+		after:             after,
+		before:            before,
 	}
 }
 
@@ -57,8 +70,10 @@ func (a *CTSearchV1APIService) GetIssuancesExecute(r ApiGetIssuancesRequest) (*[
 	localVarFormParams := url.Values{}
 
 	parameterAddToHeaderOrQuery(localVarQueryParams, "domain", r.domain, "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "include_subdomains", "true", "")
-	parameterAddToHeaderOrQuery(localVarQueryParams, "match_wildcards", "true", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "include_subdomains", r.includeSubdomains, "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "match_wildcards", r.matchWildcards, "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_from", r.after.Format(time.RFC3339), "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_before", r.before.Format(time.RFC3339), "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "expand", "cert_der", "")
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
@@ -86,6 +101,8 @@ func (a *CTSearchV1APIService) GetIssuancesExecute(r ApiGetIssuancesRequest) (*[
 	if err != nil {
 		return localVarReturnValue, nil, err
 	}
+
+	r.log.With(zax.Get(r.ctx)...).Debug("Request sent", zap.String("req", req.URL.String()))
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
