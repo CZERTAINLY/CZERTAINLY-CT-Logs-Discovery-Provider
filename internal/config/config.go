@@ -19,6 +19,9 @@ type Config struct {
 		Schema   string
 		SslMode  string
 	}
+	SslMate struct {
+		BaseUrl string
+	}
 }
 
 var config Config
@@ -35,6 +38,7 @@ func Get() Config {
 	config.Database.Name = os.Getenv("DATABASE_NAME")
 	config.Database.Schema = os.Getenv("DATABASE_SCHEMA")
 	config.Database.SslMode = os.Getenv("DATABASE_SSL_MODE")
+	config.SslMate.BaseUrl = os.Getenv("SSLMATE_BASE_URL")
 
 	if config.Server.Port == "" {
 		config.Server.Port = "8080"
@@ -67,6 +71,10 @@ func Get() Config {
 
 	if config.Database.SslMode == "" {
 		config.Database.SslMode = "require"
+	}
+
+	if config.SslMate.BaseUrl == "" {
+		config.SslMate.BaseUrl = "https://api.certspotter.com"
 	}
 
 	return config

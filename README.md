@@ -31,3 +31,11 @@ CT Logs discovery provider is provided as a Docker container. Use the `docker.io
 | `DATABASE_PASSWORD` | Database password                                                                               | ![](https://img.shields.io/badge/-YES-success.svg) | `N/A`         |
 | `DATABASE_SCHEMA`   | Database schema                                                                                 | ![](https://img.shields.io/badge/-NO-red.svg)      | `ctlogs`      |
 | `LOG_LEVEL`         | Logging level for the service, allowed value is `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` | ![](https://img.shields.io/badge/-NO-red.svg)      | `INFO`        |
+
+## SSLMate specific configuration
+
+CT Logs discovery provider requires the following configuration for the SSLMate provider:
+
+| Variable           | Description                  | Required                                      | Default value                 |
+|--------------------|------------------------------|-----------------------------------------------|-------------------------------|
+| `SSLMATE_BASE_URL` | Base URL for the SSLMate API | ![](https://img.shields.io/badge/-NO-red.svg) | `https://api.certspotter.com` |

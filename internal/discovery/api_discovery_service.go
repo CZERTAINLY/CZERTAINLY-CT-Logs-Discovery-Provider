@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/config"
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/db"
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/sslmate"
@@ -153,7 +154,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	clientConfig := sslmate.NewConfiguration()
 	clientConfig.UserAgent = "CZERTAINLY-CT-Logs-Discovery-Provider"
 	clientConfig.Servers = sslmate.ServerConfigurations{
-		{URL: "https://api.certspotter.com"},
+		{URL: config.Get().SslMate.BaseUrl},
 	}
 	client := sslmate.NewAPIClient(clientConfig)
 
