@@ -1,6 +1,9 @@
 package model
 
-import "github.com/tidwall/gjson"
+import (
+	"context"
+	"github.com/tidwall/gjson"
+)
 
 type CertificateRenewRequestDto struct {
 	// Certificate signing request encoded as Base64 string
@@ -19,11 +22,11 @@ type CertificateRenewRequestDto struct {
 	Meta []Attribute `json:"meta"`
 }
 
-func (a *CertificateRenewRequestDto) Unmarshal(json []byte) {
+func (a *CertificateRenewRequestDto) Unmarshal(ctx context.Context, json []byte) {
 	a.Request = gjson.GetBytes(json, "request").String()
 	a.CertificateRequestFormat = CertificateRequestFormat(gjson.GetBytes(json, "format").String())
 	a.Certificate = gjson.GetBytes(json, "certificate").String()
-	a.RaProfileAttributes = UnmarshalAttributesValues([]byte(gjson.GetBytes(json, "raProfileAttributes").Raw))
+	a.RaProfileAttributes = UnmarshalAttributesValues(ctx, []byte(gjson.GetBytes(json, "raProfileAttributes").Raw))
 }
 
 // AssertCertificateRenewRequestDtoRequired checks if the required fields are not zero-ed

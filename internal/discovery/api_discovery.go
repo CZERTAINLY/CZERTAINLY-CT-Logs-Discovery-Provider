@@ -87,7 +87,7 @@ func (c *DiscoveryAPIController) DiscoverCertificate(w http.ResponseWriter, r *h
 	discoveryRequestDtoParam := model.DiscoveryRequestDto{}
 	jsonContent, err := io.ReadAll(r.Body)
 
-	discoveryRequestDtoParam.Unmarshal(jsonContent)
+	discoveryRequestDtoParam.Unmarshal(r.Context(), jsonContent)
 	if err != nil {
 		c.errorHandler(w, r, &model.ParsingError{Err: err}, nil)
 		return

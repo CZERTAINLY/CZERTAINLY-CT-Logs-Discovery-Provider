@@ -1,6 +1,9 @@
 package model
 
-import "github.com/tidwall/gjson"
+import (
+	"context"
+	"github.com/tidwall/gjson"
+)
 
 type CaCertificatesRequestDto struct {
 
@@ -8,8 +11,8 @@ type CaCertificatesRequestDto struct {
 	RaProfileAttributes []Attribute `json:"raProfileAttributes"`
 }
 
-func (a *CaCertificatesRequestDto) Unmarshal(json []byte) {
-	a.RaProfileAttributes = UnmarshalAttributesValues([]byte(gjson.GetBytes(json, "raProfileAttributes").Raw))
+func (a *CaCertificatesRequestDto) Unmarshal(ctx context.Context, json []byte) {
+	a.RaProfileAttributes = UnmarshalAttributesValues(ctx, []byte(gjson.GetBytes(json, "raProfileAttributes").Raw))
 }
 
 // AssertCaCertificatesRequestDtoRequired checks if the required fields are not zero-ed
