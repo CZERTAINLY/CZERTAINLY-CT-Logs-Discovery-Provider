@@ -53,7 +53,7 @@ func Get() Config {
 	}
 
 	if config.Database.Schema == "" {
-		config.Database.Schema = "hvault"
+		config.Database.Schema = "ctlogs"
 	}
 
 	if config.Database.Username == "" {
