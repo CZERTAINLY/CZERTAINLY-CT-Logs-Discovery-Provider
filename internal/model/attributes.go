@@ -51,7 +51,7 @@ const (
 	DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID        string = "2293b505-522f-4ded-af57-79bb2a820d6c"
 	DISCOVERY_DATA_ATTRIBUTE_BEFORE_NAME        string = "data_before"
 	DISCOVERY_DATA_ATTRIBUTE_BEFORE_LABEL       string = "Before"
-	DISCOVERY_DATA_ATTRIBUTE_BEFORE_DESCRIPTION string = "Discover only issuances that were logged before this date (exclusive). By default, all issuances are discovered."
+	DISCOVERY_DATA_ATTRIBUTE_BEFORE_DESCRIPTION string = "Discover only issuances that were logged before this date (exclusive). Must be at least 15 minutes before the current time. By default, all issuances are discovered."
 
 	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_UUID        string = "8929217a-c42b-4eee-995f-c999cf7d1f12"
 	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_NAME        string = "metadata_failureReason"
@@ -95,8 +95,10 @@ func GetAttributeListBySet(attributeSet string) []Attribute {
 }
 
 func GetAttributeList() []Attribute {
-	attributeList := []Attribute{}
+	var attributeList []Attribute
 	attributeList = append(attributeList, getDiscoveryAttributes()...)
+	// append list with the CreateFailureReasonMetadataAttribute
+	attributeList = append(attributeList, CreateFailureReasonMetadataAttribute("dummy"))
 
 	return attributeList
 }
@@ -420,7 +422,7 @@ You can restrict the discovery to certificates that were logged after a specific
 				Label:       DISCOVERY_DATA_ATTRIBUTE_API_KEY_LABEL,
 				Visible:     true,
 				Group:       "",
-				Required:    true,
+				Required:    false,
 				ReadOnly:    false,
 				List:        true,
 				MultiSelect: false,

@@ -1,7 +1,5 @@
 package model
 
-import "gorm.io/datatypes"
-
 type DiscoveryProviderDto struct {
 
 	// Object identifier
@@ -19,7 +17,7 @@ type DiscoveryProviderDto struct {
 	CertificateData []DiscoveryProviderCertificateDataDto `json:"certificateData"`
 
 	// Certificate Metadata
-	Meta datatypes.JSON `json:"meta"`
+	Meta []MetadataAttribute `json:"meta"`
 }
 
 // AssertDiscoveryProviderDtoRequired checks if the required fields are not zero-ed

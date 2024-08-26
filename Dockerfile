@@ -4,7 +4,7 @@
 # Build Stage
 FROM golang:1.22-alpine3.19 AS builder
 
-ENV WRK_DIR /app
+ENV WRK_DIR=/app
 
 # Copy the contents to /app
 COPY . $WRK_DIR
@@ -22,7 +22,7 @@ COPY docker /app/docker
 #
 FROM alpine:3.19
 
-MAINTAINER CZERTAINLY <support@czertainly.com>
+LABEL org.opencontainers.image.authors="CZERTAINLY <support@czertainly.com>"
 
 # add non root user czertainly
 RUN addgroup --system --gid 10001 czertainly && adduser --system --home /opt/czertainly --uid 10001 --ingroup czertainly czertainly

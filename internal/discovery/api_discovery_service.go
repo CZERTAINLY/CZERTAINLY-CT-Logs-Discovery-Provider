@@ -99,8 +99,8 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 		discoveredFrom = afterAttribute.GetContent()[0].GetData().(time.Time)
 	}
 
-	// for SSLMate API, discovered_before must be at least 15 minutes in the past.
-	discoveredBefore := time.Now()
+	// Must be at least 15 minutes before the current time
+	discoveredBefore := time.Now().Add(-15 * time.Minute)
 	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID, discoveryRequestDto.Attributes) != nil {
 		beforeAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_BEFORE_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
 		discoveredBefore = beforeAttribute.GetContent()[0].GetData().(time.Time)
@@ -127,7 +127,11 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 		return model.Response(http.StatusOK, model.DiscoveryProviderDto{Uuid: discovery.UUID, Name: discovery.Name, Status: model.IN_PROGRESS, TotalCertificatesDiscovered: 0, CertificateData: nil, Meta: nil}), nil
 	}
 	if discovery.Status == model.FAILED {
-		return model.Response(http.StatusOK, model.DiscoveryProviderDto{Uuid: discovery.UUID, Name: discovery.Name, Status: model.FAILED, TotalCertificatesDiscovered: 0, CertificateData: nil, Meta: discovery.Meta}), nil
+		metadata, err := discovery.GetMeta()
+		if err != nil {
+			return model.Response(http.StatusInternalServerError, model.ErrorMessageDto{Message: "Unable to get metadata for discovery " + uuid + ", " + err.Error()}), nil
+		}
+		return model.Response(http.StatusOK, model.DiscoveryProviderDto{Uuid: discovery.UUID, Name: discovery.Name, Status: model.FAILED, TotalCertificatesDiscovered: 0, CertificateData: nil, Meta: metadata}), nil
 	} else {
 		pagination := db.Pagination{
 			Page:  int(discoveryDataRequestDto.PageNumber),
@@ -169,8 +173,11 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			metaAttributes := []model.MetadataAttribute{
 				meta,
 			}
-			discovery.SetMeta(metaAttributes)
-			err := s.discoveryRepo.UpdateDiscovery(discovery)
+			err := discovery.SetMeta(metaAttributes)
+			if err != nil {
+				return
+			}
+			err = s.discoveryRepo.UpdateDiscovery(discovery)
 			if err != nil {
 				s.log.With(zax.Get(ctx)...).Error(err.Error())
 			}
@@ -192,7 +199,15 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			if err != nil {
 				discovery.Status = model.FAILED
 				s.log.With(zax.Get(ctx)...).Error(err.Error())
-				err := s.discoveryRepo.UpdateDiscovery(discovery)
+				meta := model.CreateFailureReasonMetadataAttribute(err.Error())
+				metaAttributes := []model.MetadataAttribute{
+					meta,
+				}
+				err := discovery.SetMeta(metaAttributes)
+				if err != nil {
+					return
+				}
+				err = s.discoveryRepo.UpdateDiscovery(discovery)
 				if err != nil {
 					s.log.With(zax.Get(ctx)...).Error(err.Error())
 				}
@@ -213,7 +228,15 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	if err != nil {
 		discovery.Status = model.FAILED
 		s.log.With(zax.Get(ctx)...).Error(err.Error())
-		err := s.discoveryRepo.UpdateDiscovery(discovery)
+		meta := model.CreateFailureReasonMetadataAttribute(err.Error())
+		metaAttributes := []model.MetadataAttribute{
+			meta,
+		}
+		err := discovery.SetMeta(metaAttributes)
+		if err != nil {
+			return
+		}
+		err = s.discoveryRepo.UpdateDiscovery(discovery)
 		if err != nil {
 			s.log.With(zax.Get(ctx)...).Error(err.Error())
 		}

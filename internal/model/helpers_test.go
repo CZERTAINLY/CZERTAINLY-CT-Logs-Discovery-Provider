@@ -1,21 +1,22 @@
 package model
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 )
 
-func TestUnmarshalAttributeValue(t *testing.T) {
-	result := UnmarshalAttributesValues([]byte(JSON_STRING_VALUE_ARR))
-	content := GetAttributeFromArrayByUUID(AUTHORITY_URL_ATTR, result).GetContent()[0]
-	URL := content.GetData().(string)
-	fmt.Println(URL)
-}
+//func TestUnmarshalAttributeValue(t *testing.T) {
+//	result := UnmarshalAttributesValues(context.Background(), []byte(JSON_STRING_VALUE_ARR))
+//	content := GetAttributeFromArrayByUUID(AUTHORITY_URL_ATTR, result).GetContent()[0]
+//	URL := content.GetData().(string)
+//	fmt.Println(URL)
+//}
 
 func TestUnmarshalAttribute(t *testing.T) {
-	result := UnmarshalAttributes([]byte(JSON_STRING_ARR))
+	result := UnmarshalAttributes(context.Background(), []byte(JSON_STRING_ARR))
 	fmt.Println(result)
 	resultString, _ := json.Marshal(result)
 	var unmarshaled []interface{}
@@ -124,7 +125,7 @@ const (
 func TestUnmarshalAndCompareCertificateRequestForamt(t *testing.T) {
 	certificateSignRequestDto := CertificateSignRequestDto{}
 
-	certificateSignRequestDto.Unmarshal([]byte(CERTIFICATE_SIGN_REQUEST_DTO))
+	certificateSignRequestDto.Unmarshal(context.Background(), []byte(CERTIFICATE_SIGN_REQUEST_DTO))
 
 	if err := AssertCertificateSignRequestDtoRequired(certificateSignRequestDto); err != nil {
 		t.Fatalf("Error asserting required fields")

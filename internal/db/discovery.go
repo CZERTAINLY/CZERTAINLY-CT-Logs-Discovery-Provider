@@ -40,8 +40,16 @@ func (d *Discovery) SetMeta(attributes []model.MetadataAttribute) error {
 // Unmarshal your JSON data from the Meta field into a MetadataAttribute array
 func (d *Discovery) GetMeta() ([]model.MetadataAttribute, error) {
 	attributes := model.UnmarshalAttributes(nil, d.Meta)
-	fmt.Println(attributes)
-	return nil, nil
+	if attributes == nil {
+		return nil, fmt.Errorf("failed to unmarshal metadata attributes")
+	} else {
+		var metaAttributes []model.MetadataAttribute
+		for _, attribute := range attributes {
+			metadataAttribute := attribute.(model.MetadataAttribute)
+			metaAttributes = append(metaAttributes, metadataAttribute)
+		}
+		return metaAttributes, nil
+	}
 }
 
 type DiscoveryRepository struct {
