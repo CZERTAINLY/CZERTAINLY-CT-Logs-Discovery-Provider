@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	glogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -26,7 +27,9 @@ func ConnectDB(config config.Config) (db *gorm.DB, err error) {
 		NamingStrategy: schema.NamingStrategy{
 			TablePrefix:   config.Database.Schema + ".",
 			SingularTable: false,
-		}})
+		},
+		Logger: glogger.Default.LogMode(glogger.Silent),
+	})
 	return
 }
 
