@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/tidwall/gjson"
-	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -142,22 +141,12 @@ func unmarshalAttributeContent(ctx context.Context, content []byte, contentType 
 			log.Error(err.Error(), zap.String("content", string(content)))
 		}
 	case OBJECT:
-		//TODO: remove conversion to string after UI will be able to handle ObjectAttributeContent
-		stringData := StringAttributeContent{}
-		err := json.Unmarshal(content, &stringData)
-		result = ObjectAttributeContent{
-			Reference: stringData.Reference,
-			Data:      map[string]interface{}{"objectData": stringData.Data},
-		}
+		objectData := ObjectAttributeContent{}
+		err := json.Unmarshal(content, &objectData)
 		if err != nil {
-			// log.With(zax.Get(ctx)...).Warn(err.Error(), zap.String("content", string(content)))
-			objectData := ObjectAttributeContent{}
-			err := json.Unmarshal(content, &objectData)
-			if err != nil {
-				log.Error(err.Error(), zap.String("content", string(content)))
-			}
-			result = objectData
+			log.Error(err.Error(), zap.String("content", string(content)))
 		}
+		result = objectData
 	case BOOLEAN:
 		booleanContent := BooleanAttributeContent{}
 		err := json.Unmarshal(content, &booleanContent)
@@ -165,30 +154,14 @@ func unmarshalAttributeContent(ctx context.Context, content []byte, contentType 
 		if err != nil {
 			log.Error(err.Error(), zap.String("content", string(content)))
 		}
-
 	case SECRET:
-		//TODO: remove conversion to string after UI will be able to handle SecretAttributeContentData
-		//secretAttributeContent := SecretAttributeContent{}
-		stringData := StringAttributeContent{}
-		err := json.Unmarshal(content, &stringData)
-		result = SecretAttributeContent{
-			Reference: stringData.Reference,
-			Data: SecretAttributeContentData{
-				Secret: stringData.Data,
-			},
-		}
+		secretData := SecretAttributeContent{}
+		err := json.Unmarshal(content, &secretData)
 		if err != nil {
-			log.With(zax.Get(ctx)...).Warn(err.Error(), zap.String("content", string(content)))
-			// log.Warn(err.Error(), zap.String("content", string(content)))
-			secretData := SecretAttributeContent{}
-			err := json.Unmarshal(content, &secretData)
-			if err != nil {
-				log.Debug(err.Error(), zap.String("content", string(content)))
-				log.Error(err.Error())
-			}
-			result = secretData
+			log.Debug(err.Error(), zap.String("content", string(content)))
+			log.Error(err.Error())
 		}
-
+		result = secretData
 	case DATETIME:
 		dateTimeContent := DateTimeAttributeContent{}
 		err := json.Unmarshal(content, &dateTimeContent)
@@ -196,7 +169,6 @@ func unmarshalAttributeContent(ctx context.Context, content []byte, contentType 
 		if err != nil {
 			log.Error(err.Error(), zap.String("content", string(content)))
 		}
-
 	case CREDENTIAL: // we assume here to get only ApiKey as secret attribute content
 		credentialContent := CredentialAttributeContent{}
 		err := json.Unmarshal(content, &credentialContent)
@@ -218,19 +190,6 @@ func unmarshalAttributeContent(ctx context.Context, content []byte, contentType 
 				log.Error(err.Error(), zap.String("content", string(content)))
 			}
 		}
-
-		//secretContents := gjson.GetBytes(content, "data.attributes.0.content")
-		//
-		//// take the first secret content
-		//secretContent := secretContents.Array()[0]
-		//
-		//byteContent := []byte(secretContent.Raw)
-		//secretDataContent := SecretAttributeContent{}
-		//err := json.Unmarshal(byteContent, &secretDataContent)
-		//result = secretDataContent
-		//if err != nil {
-		//	log.Error(err.Error(), zap.String("content", string(byteContent)))
-		//}
 	}
 
 	return result
