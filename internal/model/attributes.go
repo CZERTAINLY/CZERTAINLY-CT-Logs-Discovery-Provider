@@ -56,6 +56,16 @@ const (
 	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_NAME        string = "metadata_failureReason"
 	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_LABEL       string = "Failure Reason"
 	DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_DESCRIPTION string = "Reason for the failure of the discovery process."
+
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_UUID        string = "675d8f18-9ab3-4677-b0de-2a2e6a3cbf29"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_NAME        string = "metadata_sslmateFriendlyName"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_LABEL       string = "Friendly Name"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_DESCRIPTION string = "The organization which issued the certificate. This name is curated by SSLMate to be an accurate and helpful way to identify the issuer of a certificate."
+
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_UUID        string = "60f5dfc6-eae7-4ae3-81bc-9758a8acfcff"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_NAME        string = "metadata_sslmateCaaDomains"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_LABEL       string = "CAA Domains"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_DESCRIPTION string = "The domain names which can be placed in a CAA record to authorize the issuer."
 )
 
 type AttributeName string
@@ -98,6 +108,10 @@ func GetAttributeList() []Attribute {
 	attributeList = append(attributeList, getDiscoveryAttributes()...)
 	// append list with the CreateFailureReasonMetadataAttribute
 	attributeList = append(attributeList, CreateFailureReasonMetadataAttribute("dummy"))
+	// append list with the CreateSSLMateFriendlyNameMetadataAttribute
+	attributeList = append(attributeList, CreateSSLMateFriendlyNameMetadataAttribute("dummy"))
+	// append list with the CreateSSLMateCaaDomainsMetadataAttribute
+	attributeList = append(attributeList, CreateSSLMateCaaDomainsMetadataAttribute([]string{"dummy"}))
 
 	return attributeList
 }
@@ -333,6 +347,50 @@ func CreateFailureReasonMetadataAttribute(failureReason string) MetadataAttribut
 		ContentType: STRING,
 		Properties: &MetadataAttributeProperties{
 			Label:   DISCOVERY_METADATA_ATTRIBUTE_FAILURE_REASON_LABEL,
+			Visible: true,
+			Group:   "",
+			Global:  false,
+		},
+	}
+}
+
+func CreateSSLMateFriendlyNameMetadataAttribute(friendlyName string) MetadataAttribute {
+	return MetadataAttribute{
+		Uuid:        CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_UUID,
+		Name:        CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_NAME,
+		Description: CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_DESCRIPTION,
+		Type:        META,
+		Content: []AttributeContent{
+			StringAttributeContent{
+				Reference: "friendlyName",
+				Data:      friendlyName,
+			},
+		},
+		ContentType: STRING,
+		Properties: &MetadataAttributeProperties{
+			Label:   CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_LABEL,
+			Visible: true,
+			Group:   "",
+			Global:  false,
+		},
+	}
+}
+
+func CreateSSLMateCaaDomainsMetadataAttribute(caaDomains []string) MetadataAttribute {
+	return MetadataAttribute{
+		Uuid:        CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_UUID,
+		Name:        CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_NAME,
+		Description: CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_DESCRIPTION,
+		Type:        META,
+		Content: []AttributeContent{
+			StringAttributeContent{
+				Reference: "caaDomains",
+				Data:      strings.Join(caaDomains, ", "),
+			},
+		},
+		ContentType: STRING,
+		Properties: &MetadataAttributeProperties{
+			Label:   CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_LABEL,
 			Visible: true,
 			Group:   "",
 			Global:  false,

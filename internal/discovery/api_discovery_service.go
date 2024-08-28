@@ -7,6 +7,7 @@ import (
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/sslmate"
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/utils"
 	"context"
+	"encoding/json"
 	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"math/rand"
@@ -143,9 +144,14 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 		var certificateDtos []model.DiscoveryProviderCertificateDataDto
 		rows, _ := result.Rows.([]*db.Certificate)
 		for _, certificateData := range rows {
+			metadata, err := certificateData.GetMeta()
+			if err != nil {
+				return model.Response(http.StatusInternalServerError, model.ErrorMessageDto{Message: "Unable to get metadata for certificate " + certificateData.UUID + ", " + err.Error()}), nil
+			}
 			discoveryProviderCertificateDataDto := model.DiscoveryProviderCertificateDataDto{
 				Uuid:          certificateData.UUID,
 				Base64Content: certificateData.Base64Content,
+				Meta:          metadata,
 			}
 			certificateDtos = append(certificateDtos, discoveryProviderCertificateDataDto)
 		}
@@ -216,9 +222,17 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			for _, issuance := range *response {
 				certDer := issuance.GetCertDer()
 				// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
+				frindlyNameMeta := model.CreateSSLMateFriendlyNameMetadataAttribute(issuance.GetIssuer().FriendlyName)
+				caaDomainsMeta := model.CreateSSLMateCaaDomainsMetadataAttribute(issuance.GetIssuer().CaaDomains)
+				meta := []model.MetadataAttribute{
+					frindlyNameMeta,
+					caaDomainsMeta,
+				}
+				jsonMeta, _ := json.Marshal(meta)
 				certificate := db.Certificate{
 					UUID:          utils.DeterministicGUID(certDer),
 					Base64Content: certDer,
+					Meta:          jsonMeta,
 				}
 				certificateKeys = append(certificateKeys, &certificate)
 			}

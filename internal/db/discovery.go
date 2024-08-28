@@ -52,6 +52,31 @@ func (d *Discovery) GetMeta() ([]model.MetadataAttribute, error) {
 	}
 }
 
+// Marshal your MetadataAttribute array to JSON for storing in the Meta field
+func (d *Certificate) SetMeta(attributes []model.MetadataAttribute) error {
+	jsonData, err := json.Marshal(attributes)
+	if err != nil {
+		return err
+	}
+	d.Meta = jsonData
+	return nil
+}
+
+// Unmarshal your JSON data from the Meta field into a MetadataAttribute array
+func (d *Certificate) GetMeta() ([]model.MetadataAttribute, error) {
+	attributes := model.UnmarshalAttributes(nil, d.Meta)
+	if attributes == nil {
+		return nil, fmt.Errorf("failed to unmarshal metadata attributes")
+	} else {
+		var metaAttributes []model.MetadataAttribute
+		for _, attribute := range attributes {
+			metadataAttribute := attribute.(model.MetadataAttribute)
+			metaAttributes = append(metaAttributes, metadataAttribute)
+		}
+		return metaAttributes, nil
+	}
+}
+
 type DiscoveryRepository struct {
 	db *gorm.DB
 }
