@@ -76,6 +76,8 @@ func (a *CTSearchV1APIService) GetIssuancesExecute(r ApiGetIssuancesRequest) (*[
 	parameterAddToHeaderOrQuery(localVarQueryParams, "match_wildcards", r.matchWildcards, "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_from", r.discoveredFrom.Format(time.RFC3339), "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "discovered_before", r.discoveredBefore.Format(time.RFC3339), "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "expand", "issuer", "")
+	parameterAddToHeaderOrQuery(localVarQueryParams, "expand", "problem_reporting", "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "expand", "cert_der", "")
 	parameterAddToHeaderOrQuery(localVarQueryParams, "after", r.after, "")
 	// to determine the Content-Type header
