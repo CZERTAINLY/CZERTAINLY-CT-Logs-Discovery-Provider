@@ -368,10 +368,11 @@ func CreateSSLMateFriendlyNameMetadataAttribute(friendlyName string) MetadataAtt
 		},
 		ContentType: STRING,
 		Properties: &MetadataAttributeProperties{
-			Label:   CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_LABEL,
-			Visible: true,
-			Group:   "",
-			Global:  false,
+			Label:     CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_FRIENDLY_NAME_LABEL,
+			Visible:   true,
+			Group:     "",
+			Global:    false,
+			Overwrite: true,
 		},
 	}
 }
@@ -390,10 +391,11 @@ func CreateSSLMateCaaDomainsMetadataAttribute(caaDomains []string) MetadataAttri
 		},
 		ContentType: STRING,
 		Properties: &MetadataAttributeProperties{
-			Label:   CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_LABEL,
-			Visible: true,
-			Group:   "",
-			Global:  false,
+			Label:     CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_LABEL,
+			Visible:   true,
+			Group:     "",
+			Global:    false,
+			Overwrite: true,
 		},
 	}
 }

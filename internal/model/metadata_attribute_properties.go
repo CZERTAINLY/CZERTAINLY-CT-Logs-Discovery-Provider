@@ -14,6 +14,9 @@ type MetadataAttributeProperties struct {
 
 	// Boolean determining if the Metadata is a global metadata.
 	Global bool `json:"global,omitempty"`
+
+	// Boolean determining if the new metadata content should overwrite (replace) existing content instead of appending.
+	Overwrite bool `json:"overwrite,omitempty"`
 }
 
 // AssertMetadataAttributePropertiesRequired checks if the required fields are not zero-ed
