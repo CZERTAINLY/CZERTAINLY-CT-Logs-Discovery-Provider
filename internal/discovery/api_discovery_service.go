@@ -223,10 +223,12 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 				certDer := issuance.GetCertDer()
 				// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
 				frindlyNameMeta := model.CreateSSLMateFriendlyNameMetadataAttribute(issuance.GetIssuer().FriendlyName)
-				caaDomainsMeta := model.CreateSSLMateCaaDomainsMetadataAttribute(issuance.GetIssuer().CaaDomains)
 				meta := []model.MetadataAttribute{
 					frindlyNameMeta,
-					caaDomainsMeta,
+				}
+				if issuance.GetIssuer().CaaDomains == nil {
+					caaDomainsMeta := model.CreateSSLMateCaaDomainsMetadataAttribute(issuance.GetIssuer().CaaDomains)
+					meta = append(meta, caaDomainsMeta)
 				}
 				jsonMeta, _ := json.Marshal(meta)
 				certificate := db.Certificate{
