@@ -9,7 +9,9 @@ import (
 	"context"
 	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
+	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -162,9 +164,34 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	}
 	client := sslmate.NewAPIClient(clientConfig)
 
+	// Define a maximum number of retries and a base delay
+	const maxRetries = 5
+	// 15 seconds as the base delay
+	const baseDelay = 15 * time.Second
+
 	after := ""
 	for {
-		response, _, err := client.CTSearchV1APIService.GetIssuances(ctx, s.log, domain, apiKey, includeSubdomains, matchWildcards, after, discoveredFrom, discoveredBefore).Execute()
+		var response *[]sslmate.IssuanceObject
+		var err error
+
+		// Retry loop with exponential backoff and jitter
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			response, _, err = client.CTSearchV1APIService.GetIssuances(ctx, s.log, domain, apiKey, includeSubdomains, matchWildcards, after, discoveredFrom, discoveredBefore).Execute()
+
+			if err == nil {
+				break // exit retry loop if successful
+			}
+
+			// Log the error and prepare for the next retry
+			s.log.With(zax.Get(ctx)...).Error("Attempt " + strconv.Itoa(attempt+1) + " failed: " + err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
+
+			// Introduce a random delay before retrying
+			waitTime := baseDelay * time.Duration(1<<attempt)             // Exponential backoff
+			waitTime += time.Duration(rand.Intn(1000)) * time.Millisecond // Add jitter
+			// Log the wait time in seconds
+			s.log.With(zax.Get(ctx)...).Info("Waiting for " + waitTime.String() + " before retrying")
+			time.Sleep(waitTime)
+		}
 
 		if err != nil {
 			s.log.With(zax.Get(ctx)...).Error(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
