@@ -42,7 +42,7 @@ func (s *DiscoveryAPIService) DeleteDiscovery(ctx context.Context, uuid string) 
 	s.log.With(zax.Get(ctx)...).Info("Deleting discovery", zap.String("discovery_uuid", discovery.UUID))
 	err = s.discoveryRepo.DeleteDiscovery(discovery)
 	if err != nil {
-		return model.Response(http.StatusInternalServerError, model.ErrorMessageDto{Message: "Unable to delete discover" + discovery.UUID}), nil
+		return model.Response(http.StatusInternalServerError, model.ErrorMessageDto{Message: "Unable to delete discovery " + discovery.UUID + ", " + err.Error()}), nil
 	}
 
 	return model.Response(204, nil), nil
@@ -225,9 +225,9 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			for _, issuance := range *response {
 				certDer := issuance.GetCertDer()
 				// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
-				frindlyNameMeta := model.CreateSSLMateFriendlyNameMetadataAttribute(issuance.GetIssuer().FriendlyName)
+				friendlyNameMeta := model.CreateSSLMateFriendlyNameMetadataAttribute(issuance.GetIssuer().FriendlyName)
 				meta := []model.MetadataAttribute{
-					frindlyNameMeta,
+					friendlyNameMeta,
 				}
 				if issuance.GetIssuer().CaaDomains != nil {
 					caaDomainsMeta := model.CreateSSLMateCaaDomainsMetadataAttribute(issuance.GetIssuer().CaaDomains)
@@ -239,7 +239,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 				}
 				jsonMeta, _ := json.Marshal(meta)
 				certificate := db.Certificate{
-					UUID:          utils.DeterministicGUID(certDer),
+					UUID:          utils.DeterministicGUID(certDer, string(jsonMeta)),
 					Base64Content: certDer,
 					Meta:          jsonMeta,
 				}

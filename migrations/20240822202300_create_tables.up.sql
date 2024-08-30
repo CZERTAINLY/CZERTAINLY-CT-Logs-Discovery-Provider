@@ -25,5 +25,5 @@ create table discovery_certificates
     discovery_id   bigint not null,
     primary key (certificate_id, discovery_id),
     foreign key (certificate_id) references certificates (id),
-    foreign key (discovery_id) references discoveries (id)
+    foreign key (discovery_id) references discoveries (id) on delete cascade
 );

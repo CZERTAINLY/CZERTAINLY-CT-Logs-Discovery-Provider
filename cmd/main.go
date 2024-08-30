@@ -11,14 +11,14 @@ import (
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/utils"
 	"bytes"
 	"context"
+	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"github.com/yuseferi/zax/v2"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"strings"
-
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
+	"time"
 )
 
 var version = "1.0.0"
@@ -39,6 +39,9 @@ func main() {
 	}
 	db.MigrateDB(c)
 	discoveryRepo, _ := db.NewDiscoveryRepository(conn)
+
+	// Schedule the cleanup task
+	go scheduleCleanup(discoveryRepo)
 
 	DiscoveryAPIService := discovery.NewDiscoveryAPIService(discoveryRepo, log)
 	DiscoveryAPIController := discovery.NewDiscoveryAPIController(DiscoveryAPIService)
@@ -127,5 +130,25 @@ func populateRoutes(router *mux.Router, routeKey string) {
 	})
 	if err != nil {
 		log.Error("Unable to walk routers:" + err.Error())
+	}
+}
+
+func scheduleCleanup(repo *db.DiscoveryRepository) {
+	// Perform the cleanup
+	for {
+		now := time.Now()
+		// Truncate to today's midnight, then add 24 hours to get the next midnight
+		nextRun := now.Truncate(24 * time.Hour).Add(24 * time.Hour)
+
+		// Sleep until the next run time
+		time.Sleep(time.Until(nextRun))
+
+		// Perform the cleanup
+		err := repo.DeleteOrphanedCertificates()
+		if err != nil {
+			log.Error("Failed to delete orphaned certificates", zap.Error(err))
+		} else {
+			log.Info("Successfully deleted orphaned certificates")
+		}
 	}
 }
