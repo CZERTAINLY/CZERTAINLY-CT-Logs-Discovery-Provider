@@ -168,6 +168,20 @@ func (d *DiscoveryRepository) DeleteDiscovery(discovery *Discovery) error {
 	return nil
 }
 
+func (d *DiscoveryRepository) DeleteOrphanedCertificates() error {
+	tx := d.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if err := tx.Where("id NOT IN (SELECT certificate_id FROM discovery_certificates)").Delete(&Certificate{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
 type Pagination struct {
 	Limit      int         `json:"limit,omitempty"`
 	Page       int         `json:"page,omitempty"`
