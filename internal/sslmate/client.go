@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -59,6 +60,10 @@ func NewAPIClient(cfg *Configuration) *APIClient {
 	return c
 }
 
+func atoi(in string) (int, error) {
+	return strconv.Atoi(in)
+}
+
 // selectHeaderContentType select a content type from the available list.
 func selectHeaderContentType(contentTypes []string) string {
 	if len(contentTypes) == 0 {
@@ -91,6 +96,35 @@ func contains(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// Verify optional parameters are of the correct type.
+func typeCheckParameter(obj interface{}, expected string, name string) error {
+	// Make sure there is an object.
+	if obj == nil {
+		return nil
+	}
+
+	// Check the type is as expected.
+	if reflect.TypeOf(obj).String() != expected {
+		return fmt.Errorf("expected %s to be of type %s but received %s", name, expected, reflect.TypeOf(obj).String())
+	}
+	return nil
+}
+
+func parameterValueToString(obj interface{}, key string) string {
+	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
+		return fmt.Sprintf("%v", obj)
+	}
+	var param, ok = obj.(MappedNullable)
+	if !ok {
+		return ""
+	}
+	dataMap, err := param.ToMap()
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", dataMap[key])
 }
 
 // parameterAddToHeaderOrQuery adds the provided object to the request header or url query
@@ -180,6 +214,15 @@ func parameterAddToHeaderOrQuery(headerOrQueryParams interface{}, keyPrefix stri
 	}
 }
 
+// helper for converting interface{} parameters to json strings
+func parameterToJson(obj interface{}) (string, error) {
+	jsonBuf, err := json.Marshal(obj)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBuf), err
+}
+
 // callAPI do the request.
 func (c *APIClient) callAPI(request *http.Request) (*http.Response, error) {
 	if c.cfg.Debug {
@@ -259,10 +302,7 @@ func (c *APIClient) prepareRequest(
 						return nil, err
 					}
 				} else { // form value
-					err := w.WriteField(k, iv)
-					if err != nil {
-						return nil, err
-					}
+					w.WriteField(k, iv)
 				}
 			}
 		}
@@ -285,10 +325,7 @@ func (c *APIClient) prepareRequest(
 
 		// Set Content-Length
 		headerParams["Content-Length"] = fmt.Sprintf("%d", body.Len())
-		err := w.Close()
-		if err != nil {
-			return nil, err
-		}
+		w.Close()
 	}
 
 	if strings.HasPrefix(headerParams["Content-Type"], "application/x-www-form-urlencoded") && len(formParams) > 0 {
@@ -448,6 +485,13 @@ func reportError(format string, a ...interface{}) error {
 	return fmt.Errorf(format, a...)
 }
 
+// A wrapper for strict JSON decoding
+func newStrictDecoder(data []byte) *json.Decoder {
+	dec := json.NewDecoder(bytes.NewBuffer(data))
+	dec.DisallowUnknownFields()
+	return dec
+}
+
 // Set request body from an interface{}
 func setBody(body interface{}, contentType string) (bodyBuf *bytes.Buffer, err error) {
 	if bodyBuf == nil {
@@ -554,6 +598,10 @@ func CacheExpires(r *http.Response) time.Time {
 		}
 	}
 	return expires
+}
+
+func strlen(s string) int {
+	return utf8.RuneCountInString(s)
 }
 
 // GenericOpenAPIError Provides access to the body, error and model on returned errors.
