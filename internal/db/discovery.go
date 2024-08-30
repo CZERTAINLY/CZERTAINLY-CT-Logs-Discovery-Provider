@@ -2,6 +2,7 @@ package db
 
 import (
 	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
+	"context"
 	"encoding/json"
 	"fmt"
 	"gorm.io/datatypes"
@@ -39,7 +40,7 @@ func (d *Discovery) SetMeta(attributes []model.MetadataAttribute) error {
 
 // Unmarshal your JSON data from the Meta field into a MetadataAttribute array
 func (d *Discovery) GetMeta() ([]model.MetadataAttribute, error) {
-	attributes := model.UnmarshalAttributes(nil, d.Meta)
+	attributes := model.UnmarshalAttributes(context.TODO(), d.Meta)
 	if attributes == nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata attributes")
 	} else {
@@ -64,7 +65,7 @@ func (d *Certificate) SetMeta(attributes []model.MetadataAttribute) error {
 
 // Unmarshal your JSON data from the Meta field into a MetadataAttribute array
 func (d *Certificate) GetMeta() ([]model.MetadataAttribute, error) {
-	attributes := model.UnmarshalAttributes(nil, d.Meta)
+	attributes := model.UnmarshalAttributes(context.TODO(), d.Meta)
 	if attributes == nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata attributes")
 	} else {
@@ -88,6 +89,9 @@ func NewDiscoveryRepository(db *gorm.DB) (*DiscoveryRepository, error) {
 func (d *DiscoveryRepository) CreateDiscovery(discovery *Discovery) error {
 	var exisitngDiscovery Discovery
 	result := d.db.First(&exisitngDiscovery, "name = ?", discovery.Name)
+	if result.Error != nil {
+		return result.Error
+	}
 	if exisitngDiscovery.Name != "" {
 		return fmt.Errorf("discovery instance with name %s already exists", discovery.Name)
 	}

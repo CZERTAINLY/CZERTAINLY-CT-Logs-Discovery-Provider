@@ -97,6 +97,9 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 	}
 
 	discoveredFrom, err := time.Parse(time.RFC3339, "2013-01-01T00:00:00Z")
+	if err != nil {
+		return model.Response(http.StatusInternalServerError, model.ErrorMessageDto{Message: "Unable to parse discoveredFrom date " + err.Error()}), nil
+	}
 	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID, discoveryRequestDto.Attributes) != nil {
 		afterAttribute := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_AFTER_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
 		discoveredFrom = afterAttribute.GetContent()[0].GetData().(time.Time)
