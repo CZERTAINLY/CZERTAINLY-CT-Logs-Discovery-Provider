@@ -66,6 +66,11 @@ const (
 	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_NAME        string = "metadata_sslmateCaaDomains"
 	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_LABEL       string = "CAA Domains"
 	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_DESCRIPTION string = "The domain names which can be placed in a CAA record to authorize the issuer."
+
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_UUID        string = "65c58eb2-6b6f-4520-af83-2a1543a1ec38"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_NAME        string = "metadata_sslmateProblemReporting"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_LABEL       string = "Problem Reporting"
+	CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_DESCRIPTION string = "Instructions on how to request the certificate be revoked."
 )
 
 type AttributeName string
@@ -112,6 +117,8 @@ func GetAttributeList() []Attribute {
 	attributeList = append(attributeList, CreateSSLMateFriendlyNameMetadataAttribute("dummy"))
 	// append list with the CreateSSLMateCaaDomainsMetadataAttribute
 	attributeList = append(attributeList, CreateSSLMateCaaDomainsMetadataAttribute([]string{"dummy"}))
+	// append list with the CreateSSLMateProblemReportingMetadataAttribute
+	attributeList = append(attributeList, CreateSSLMateProblemReportingMetadataAttribute("dummy"))
 
 	return attributeList
 }
@@ -392,6 +399,29 @@ func CreateSSLMateCaaDomainsMetadataAttribute(caaDomains []string) MetadataAttri
 		ContentType: STRING,
 		Properties: &MetadataAttributeProperties{
 			Label:     CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_CAA_DOMAINS_LABEL,
+			Visible:   true,
+			Group:     "",
+			Global:    false,
+			Overwrite: true,
+		},
+	}
+}
+
+func CreateSSLMateProblemReportingMetadataAttribute(problemReporting string) MetadataAttribute {
+	return MetadataAttribute{
+		Uuid:        CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_UUID,
+		Name:        CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_NAME,
+		Description: CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_DESCRIPTION,
+		Type:        META,
+		Content: []AttributeContent{
+			StringAttributeContent{
+				Reference: "problemReporting",
+				Data:      problemReporting,
+			},
+		},
+		ContentType: STRING,
+		Properties: &MetadataAttributeProperties{
+			Label:     CERTIFICATE_METADATA_ATTRIBUTE_SSLMATE_PROBLEM_REPORTING_LABEL,
 			Visible:   true,
 			Group:     "",
 			Global:    false,

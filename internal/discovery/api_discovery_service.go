@@ -229,9 +229,13 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 				meta := []model.MetadataAttribute{
 					frindlyNameMeta,
 				}
-				if issuance.GetIssuer().CaaDomains == nil {
+				if issuance.GetIssuer().CaaDomains != nil {
 					caaDomainsMeta := model.CreateSSLMateCaaDomainsMetadataAttribute(issuance.GetIssuer().CaaDomains)
 					meta = append(meta, caaDomainsMeta)
+				}
+				if issuance.ProblemReporting != "" {
+					problemReportingMeta := model.CreateSSLMateProblemReportingMetadataAttribute(issuance.ProblemReporting)
+					meta = append(meta, problemReportingMeta)
 				}
 				jsonMeta, _ := json.Marshal(meta)
 				certificate := db.Certificate{

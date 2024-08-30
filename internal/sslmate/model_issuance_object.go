@@ -14,7 +14,7 @@ type IssuanceObject struct {
 	// Information about the certificate authority which issued the certificate. Only present if expanded.
 	Issuer IssuerObject `json:"issuer"`
 	// Instructions on how to request the certificate be revoked. Only present if expanded.
-	ProblemReporting string `json:"problem_reporting"`
+	ProblemReporting string `json:"problem_reporting,omitempty"`
 	// The base64 representation of the DER-encoded X.509 certificate (if known) or precertificate
 	// (if certificate is not known). Only present if expanded.
 	CertDer              string `json:"cert_der"`
@@ -144,7 +144,6 @@ func (o *IssuanceObject) UnmarshalJSON(data []byte) (err error) {
 	requiredProperties := []string{
 		"id",
 		"issuer",
-		"problem_reporting",
 		"cert_der",
 	}
 

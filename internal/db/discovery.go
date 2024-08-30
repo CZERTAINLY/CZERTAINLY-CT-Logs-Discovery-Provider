@@ -88,15 +88,12 @@ func NewDiscoveryRepository(db *gorm.DB) (*DiscoveryRepository, error) {
 
 func (d *DiscoveryRepository) CreateDiscovery(discovery *Discovery) error {
 	var exisitngDiscovery Discovery
-	result := d.db.First(&exisitngDiscovery, "name = ?", discovery.Name)
-	if result.Error != nil {
-		return result.Error
-	}
+	d.db.First(&exisitngDiscovery, "name = ?", discovery.Name)
 	if exisitngDiscovery.Name != "" {
 		return fmt.Errorf("discovery instance with name %s already exists", discovery.Name)
 	}
 
-	result = d.db.Create(&discovery)
+	result := d.db.Create(&discovery)
 	if result.Error != nil {
 		return result.Error
 	}
