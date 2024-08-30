@@ -1,0 +1,8 @@
+inputSpec: https://api.czertainly.com/2.12.0/doc-openapi-connector-discovery-provider.yaml
+generatorName: go-server
+outputDir: internal/server/czertainly
+outputAsLibrary: true
+onlyInterfaces: true
+enumClassPrefix: true
+#packageName: czertainly # default is openapi
+sourceFolder: .
