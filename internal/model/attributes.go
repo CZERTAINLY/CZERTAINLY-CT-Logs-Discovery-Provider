@@ -1,10 +1,10 @@
 package model
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/logger"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"strings"

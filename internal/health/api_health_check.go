@@ -1,7 +1,7 @@
 package health
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
 	"net/http"
 	"strings"
 )

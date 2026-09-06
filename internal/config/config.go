@@ -1,7 +1,7 @@
 package config
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/logger"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"os"
 )
 

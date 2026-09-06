@@ -1,7 +1,7 @@
 package db
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/config"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/config"
 	"github.com/lib/pq"
 )
 

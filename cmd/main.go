@@ -1,16 +1,16 @@
 package main
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/config"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/connectorInfo"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/db"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/discovery"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/health"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/logger"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/utils"
 	"bytes"
 	"context"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/config"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/connectorInfo"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/db"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/discovery"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/health"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/utils"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"github.com/yuseferi/zax/v2"
@@ -30,7 +30,7 @@ var log = logger.Get()
 func main() {
 	routes = make(map[string][]model.EndpointDto)
 	c := config.Get()
-	log.Info("Starting CZERTAINLY-CT-Logs-Discovery-Provider", zap.String("version", version))
+	log.Info("Starting ILM-CT-Logs-Discovery-Provider", zap.String("version", version))
 	conn, _ := db.ConnectDB(c)
 	schema := config.Get().Database.Schema
 

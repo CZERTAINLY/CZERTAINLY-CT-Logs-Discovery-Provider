@@ -1,8 +1,8 @@
 package connectorInfo
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
 	"context"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
 	"net/http"
 )
 

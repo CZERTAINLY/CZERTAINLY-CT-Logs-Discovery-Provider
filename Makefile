@@ -92,7 +92,7 @@ endef
 
 .PHONY: openapi-clean
 openapi-clean: ## Clear the OpenAPI generated files
-	rm -rf internal/server/czertainly/*
+	rm -rf internal/server/ilm/*
 
 .PHONY: openapi-generate
 openapi-generate: ## Generate the OpenAPI server

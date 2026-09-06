@@ -1,10 +1,10 @@
 package db
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
 	"gorm.io/datatypes"
 	"math"
 

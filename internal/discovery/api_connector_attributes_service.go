@@ -1,9 +1,9 @@
 package discovery
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
 	"context"
 	"fmt"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
 	"github.com/yuseferi/zax/v2"
 	"net/http"
 	"strings"

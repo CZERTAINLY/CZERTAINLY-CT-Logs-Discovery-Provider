@@ -1,6 +1,4 @@
-# CZERTAINLY-CT-Logs-Discovery-Provider
-
-> This repository is part of the open-source project CZERTAINLY. You can find more information about the project at [CZERTAINLY](https://github.com/CZERTAINLY/CZERTAINLY) repository, including the contribution guide.
+# CT Logs Discovery Provider
 
 CT Log discovery provider is the implementation of the following `Function Groups` and `Kinds`:
 
@@ -19,7 +17,7 @@ CT Logs discovery provider requires the PostgreSQL database version 12+.
 
 ## Docker container
 
-CT Logs discovery provider is provided as a Docker container. Use the `docker.io/czertainly/czertainly-ct-logs-discovery-provider:tagname` to pull the required image from the repository. It can be configured using the following environment variables:
+CT Logs discovery provider is provided as a Docker container. Use the `ilm-private/ct-logs-discovery-provider:tagname` image to pull the required image from the repository. It can be configured using the following environment variables:
 
 | Variable            | Description                                                                                     | Required                                           | Default value |
 |---------------------|-------------------------------------------------------------------------------------------------|----------------------------------------------------|---------------|

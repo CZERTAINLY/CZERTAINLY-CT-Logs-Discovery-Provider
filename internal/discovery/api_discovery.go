@@ -1,8 +1,8 @@
 package discovery
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
 	"encoding/json"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
 	"io"
 	"net/http"
 	"strings"
