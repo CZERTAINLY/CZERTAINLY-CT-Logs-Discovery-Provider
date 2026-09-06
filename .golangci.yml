@@ -1,8 +1,23 @@
-issues:
-  exclude-dirs:
-    - internal/sslmate
+version: "2"
 
-# for github actions
-run:
-  skip-dirs:
-    - internal/sslmate
+issues:
+  uniq-by-line: true
+
+linters:
+  exclusions:
+    paths:
+      # Generated SSLMate API client.
+      - internal/sslmate
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+    checkstyle:
+      path: golangci-lint-report.xml
+  sort-order:
+    - file
+    - linter
+    - severity
