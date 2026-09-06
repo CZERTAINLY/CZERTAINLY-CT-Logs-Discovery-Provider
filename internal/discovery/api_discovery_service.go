@@ -169,7 +169,7 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 // base URL.
 func newSSLMateClient() *sslmate.APIClient {
 	clientConfig := sslmate.NewConfiguration()
-	clientConfig.UserAgent = "ILM-CT-Logs-Discovery-Provider"
+	clientConfig.UserAgent = "CT-Logs-Discovery-Provider"
 	clientConfig.Servers = sslmate.ServerConfigurations{
 		{URL: config.Get().SslMate.BaseUrl},
 	}

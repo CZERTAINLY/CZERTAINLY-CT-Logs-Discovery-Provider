@@ -17,7 +17,7 @@ CT Logs discovery provider requires the PostgreSQL database version 12+.
 
 ## Docker container
 
-CT Logs discovery provider is provided as a Docker container. Use the `ilm-private/ct-logs-discovery-provider:tagname` image to pull the required image from the repository. It can be configured using the following environment variables:
+CT Logs discovery provider is provided as a Docker container. Use the `ilm/ct-logs-discovery-provider:tagname` image to pull the required image from the repository. It can be configured using the following environment variables:
 
 | Variable            | Description                                                                                     | Required                                           | Default value |
 |---------------------|-------------------------------------------------------------------------------------------------|----------------------------------------------------|---------------|

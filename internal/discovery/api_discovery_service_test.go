@@ -17,8 +17,8 @@ func TestNewSSLMateClientIdentifiesTheConnector(t *testing.T) {
 
 	got := newSSLMateClient().GetConfig().UserAgent
 
-	if got != "ILM-CT-Logs-Discovery-Provider" {
-		t.Errorf("user agent: got %q, want %q", got, "ILM-CT-Logs-Discovery-Provider")
+	if got != "CT-Logs-Discovery-Provider" {
+		t.Errorf("user agent: got %q, want %q", got, "CT-Logs-Discovery-Provider")
 	}
 }
 

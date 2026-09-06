@@ -30,7 +30,7 @@ var log = logger.Get()
 func main() {
 	routes = make(map[string][]model.EndpointDto)
 	c := config.Get()
-	log.Info("Starting ILM-CT-Logs-Discovery-Provider", zap.String("version", version))
+	log.Info("Starting CT-Logs-Discovery-Provider", zap.String("version", version))
 	conn, _ := db.ConnectDB(c)
 	schema := config.Get().Database.Schema
 
