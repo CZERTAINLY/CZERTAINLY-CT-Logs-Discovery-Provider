@@ -1,0 +1,101 @@
+name: "Check PR"
+on:
+  pull_request:
+    branches: [main*]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}-build-pr
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history for better Sonar analysis relevancy
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Lint. The .golangci.yml checkstyle formatter writes golangci-lint-report.xml,
+      # consumed downstream by the Sonar workflow.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.12.2
+          args: --timeout=5m
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: govulncheck
+        # Version is lock-file enforced: the tool directive in go.mod pins
+        # govulncheck and go.sum verifies it (S8545).
+        run: go tool govulncheck ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -race -vet=off -coverprofile=coverage.out ./...
+
+      # Package up PR context for downstream workflow_run (Sonar handoff).
+      # Values go through env (not inline ${{ }} in the script) and jq --arg, so
+      # an unusual branch/repo name can neither inject shell nor break the JSON.
+      - name: Prepare PR context artifact
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          jq -n \
+            --arg pr_number "$PR_NUMBER" \
+            --arg head_sha "$HEAD_SHA" \
+            --arg head_repo "$HEAD_REPO" \
+            --arg head_branch "$HEAD_BRANCH" \
+            --arg base_ref "$BASE_REF" \
+            --arg run_id "$RUN_ID" \
+            '{pr_number: $pr_number, head_sha: $head_sha, head_repo: $head_repo, head_branch: $head_branch, base_ref: $base_ref, run_id: $run_id}' \
+            > pr-context.json
+          cat pr-context.json
+
+      - name: Upload PR context
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-context
+          path: pr-context.json
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-report
+          path: coverage.out
+          if-no-files-found: error
+
+      - name: Upload golangci-lint report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: golangci-lint-report
+          path: golangci-lint-report.xml
+          if-no-files-found: error
