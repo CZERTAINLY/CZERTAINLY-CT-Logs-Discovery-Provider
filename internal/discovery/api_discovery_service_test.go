@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -74,6 +75,8 @@ type fakeAssociateCall struct {
 // DiscoveryCertificates makes and returns canned errors, so tests can drive
 // every branch of that method without a live database.
 type fakeDiscoveryRepository struct {
+	findDiscovery *db.Discovery
+
 	updateDiscoveryCalls []db.Discovery
 	updateDiscoveryErr   error
 
@@ -82,6 +85,9 @@ type fakeDiscoveryRepository struct {
 }
 
 func (f *fakeDiscoveryRepository) FindDiscoveryByUUID(uuid string) (*db.Discovery, error) {
+	if f.findDiscovery != nil {
+		return f.findDiscovery, nil
+	}
 	return nil, errors.New("fakeDiscoveryRepository: FindDiscoveryByUUID not configured for this test")
 }
 
@@ -217,5 +223,132 @@ func TestDiscoveryCertificatesFailsWhenAssociationErrors(t *testing.T) {
 	}
 	if got := repo.updateDiscoveryCalls[0].Status; got != model.FAILED {
 		t.Errorf("updated status: got %q, want %q", got, model.FAILED)
+	}
+}
+
+func TestFailDiscoveryRecordsTheReasonAndPersistsIt(t *testing.T) {
+	repo := &fakeDiscoveryRepository{}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.failDiscovery(context.Background(), target, "the upstream API rejected the request")
+
+	if target.Status != model.FAILED {
+		t.Fatalf("status: got %q, want %q", target.Status, model.FAILED)
+	}
+	if !strings.Contains(string(target.Meta), "the upstream API rejected the request") {
+		t.Errorf("expected the reason in the metadata, got %q", string(target.Meta))
+	}
+	if len(repo.updateDiscoveryCalls) != 1 {
+		t.Fatalf("UpdateDiscovery calls: got %d, want 1", len(repo.updateDiscoveryCalls))
+	}
+	if got := repo.updateDiscoveryCalls[0].Status; got != model.FAILED {
+		t.Errorf("persisted status: got %q, want %q", got, model.FAILED)
+	}
+}
+
+func TestFailDiscoveryStillMarksTheDiscoveryWhenPersistingFails(t *testing.T) {
+	repo := &fakeDiscoveryRepository{updateDiscoveryErr: errors.New("database unavailable")}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.failDiscovery(context.Background(), target, "discovery failed")
+
+	if target.Status != model.FAILED {
+		t.Errorf("status: got %q, want %q", target.Status, model.FAILED)
+	}
+	if len(repo.updateDiscoveryCalls) != 1 {
+		t.Errorf("UpdateDiscovery calls: got %d, want 1", len(repo.updateDiscoveryCalls))
+	}
+}
+
+func TestListAttributeDefinitionsRejectsAnUnknownKind(t *testing.T) {
+	svc := &ConnectorAttributesAPIService{log: zap.NewNop()}
+
+	response, err := svc.ListAttributeDefinitions(context.Background(), "not-a-kind")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Errorf("code: got %d, want %d", response.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestValidateAttributesRejectsAnUnknownKind(t *testing.T) {
+	svc := &ConnectorAttributesAPIService{log: zap.NewNop()}
+
+	response, err := svc.ValidateAttributes(context.Background(), "not-a-kind", nil)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Errorf("code: got %d, want %d", response.Code, http.StatusUnprocessableEntity)
+	}
+}
+
+func TestDeleteDiscoveryReportsAFailedDelete(t *testing.T) {
+	repo := &fakeDiscoveryRepository{findDiscovery: &db.Discovery{UUID: "discovery-uuid"}}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+
+	response, err := svc.DeleteDiscovery(context.Background(), "discovery-uuid")
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if response.Code != http.StatusInternalServerError {
+		t.Errorf("code: got %d, want %d", response.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestDiscoveryCertificatesFailsWhenTheCompletionUpdateFails(t *testing.T) {
+	setMandatoryDatabaseEnv(t)
+	server := newIssuancesServer(t, nil)
+	t.Setenv("SSLMATE_BASE_URL", server.URL)
+
+	repo := &fakeDiscoveryRepository{updateDiscoveryErr: errors.New("database unavailable")}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.DiscoveryCertificates(context.Background(), target, "example.com", "", false, false, time.Now().Add(-time.Hour), time.Now())
+
+	if target.Status != model.FAILED {
+		t.Errorf("status: got %q, want %q", target.Status, model.FAILED)
+	}
+}
+
+func TestDiscoverCertificateToleratesAnEmptyDomainAndForeignCredential(t *testing.T) {
+	setMandatoryDatabaseEnv(t)
+	repo := &fakeDiscoveryRepository{}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+
+	request := model.DiscoveryRequestDto{
+		Name: "example-discovery",
+		Attributes: []model.Attribute{
+			model.DataAttribute{
+				Uuid:    model.DISCOVERY_DATA_ATTRIBUTE_DOMAIN_UUID,
+				Content: []model.AttributeContent{nil},
+			},
+			model.DataAttribute{
+				Uuid: model.DISCOVERY_DATA_ATTRIBUTE_API_KEY_UUID,
+				Content: []model.AttributeContent{
+					model.CredentialAttributeContent{
+						Data: model.CredentialAttributeContentData{Kind: "Basic"},
+					},
+				},
+			},
+		},
+	}
+
+	// CreateDiscovery is unconfigured on the fake and therefore fails, so the
+	// request is rejected before any discovery goroutine is started.
+	response, err := svc.DiscoverCertificate(context.Background(), request)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if response.Code != http.StatusNotFound {
+		t.Errorf("code: got %d, want %d", response.Code, http.StatusNotFound)
 	}
 }

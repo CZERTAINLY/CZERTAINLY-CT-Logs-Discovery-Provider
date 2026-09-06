@@ -3,7 +3,7 @@ package sslmate
 import (
 	"bytes"
 	"context"
-	"github.com/yuseferi/zax/v2"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -107,7 +107,7 @@ func (a *CTSearchV1APIService) GetIssuancesExecute(r ApiGetIssuancesRequest) (*[
 		return localVarReturnValue, nil, err
 	}
 
-	r.log.With(zax.Get(r.ctx)...).Debug("Request sent", zap.String("req", req.URL.String()))
+	r.log.With(logger.Fields(r.ctx)...).Debug("Request sent", zap.String("req", req.URL.String()))
 
 	localVarHTTPResponse, err := a.client.callAPI(req)
 	if err != nil || localVarHTTPResponse == nil {
