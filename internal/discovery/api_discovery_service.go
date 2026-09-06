@@ -1,13 +1,13 @@
 package discovery
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/config"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/db"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/model"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/sslmate"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/utils"
 	"context"
 	"encoding/json"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/config"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/db"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/sslmate"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/utils"
 	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"math/rand"
@@ -164,14 +164,20 @@ func (s *DiscoveryAPIService) GetDiscovery(ctx context.Context, uuid string, dis
 
 }
 
-func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discovery *db.Discovery, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, discoveredFrom time.Time, discoveredBefore time.Time) {
-	// get the client
+// newSSLMateClient builds the SSLMate API client used to search certificate
+// transparency logs, identifying this connector and honouring the configured
+// base URL.
+func newSSLMateClient() *sslmate.APIClient {
 	clientConfig := sslmate.NewConfiguration()
-	clientConfig.UserAgent = "CZERTAINLY-CT-Logs-Discovery-Provider"
+	clientConfig.UserAgent = "CT-Logs-Discovery-Provider"
 	clientConfig.Servers = sslmate.ServerConfigurations{
 		{URL: config.Get().SslMate.BaseUrl},
 	}
-	client := sslmate.NewAPIClient(clientConfig)
+	return sslmate.NewAPIClient(clientConfig)
+}
+
+func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discovery *db.Discovery, domain string, apiKey string, includeSubdomains bool, matchWildcards bool, discoveredFrom time.Time, discoveredBefore time.Time) {
+	client := newSSLMateClient()
 
 	// Define a maximum number of retries and a base delay
 	const maxRetries = 5

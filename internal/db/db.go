@@ -1,10 +1,10 @@
 package db
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/config"
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/logger"
 	"errors"
 	"fmt"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/config"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"github.com/golang-migrate/migrate/v4"
 	"go.uber.org/zap"
 
@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/schema"
 
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
+	// Registers the file:// source driver that MigrateDB uses to read migrations.
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 

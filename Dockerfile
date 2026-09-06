@@ -22,22 +22,22 @@ COPY docker /app/docker
 #
 FROM alpine:3.22
 
-LABEL org.opencontainers.image.authors="CZERTAINLY <support@czertainly.com>"
+LABEL org.opencontainers.image.authors="ILM <ilm@omnitrust.com>"
 
-# apply outstanding Alpine security updates on top of the base image
-# add non root user czertainly
+# add non root user ct-logs-discovery-provider
 RUN apk upgrade --no-cache \
-    && addgroup --system --gid 10001 czertainly \
-    && adduser --system --home /opt/czertainly --uid 10001 --ingroup czertainly czertainly
+    && addgroup --system --gid 10001 ct-logs-discovery-provider \
+    && adduser --system --home /opt/ct-logs-discovery-provider --uid 10001 \
+       --ingroup ct-logs-discovery-provider ct-logs-discovery-provider
 
 COPY --from=builder /app/docker /
-COPY --from=builder /app /opt/czertainly
+COPY --from=builder /app /opt/ct-logs-discovery-provider
 
-WORKDIR /opt/czertainly
+WORKDIR /opt/ct-logs-discovery-provider
 
 ENV SERVER_PORT=8080
 ENV LOG_LEVEL=INFO
 
 USER 10001
 
-ENTRYPOINT ["/opt/czertainly/entry.sh"]
+ENTRYPOINT ["/opt/ct-logs-discovery-provider/entry.sh"]

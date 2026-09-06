@@ -1,12 +1,12 @@
 package utils
 
 import (
-	"CZERTAINLY-CT-Logs-Discovery-Provider/internal/logger"
 	"crypto/md5"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"strings"
 
 	"github.com/google/uuid"

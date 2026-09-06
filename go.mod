@@ -1,4 +1,4 @@
-module CZERTAINLY-CT-Logs-Discovery-Provider
+module github.com/OmniTrustILM/ct-logs-discovery-provider
 
 go 1.26.6
 
