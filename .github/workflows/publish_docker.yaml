@@ -25,7 +25,7 @@ jobs:
       COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
       COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
     with:
-      image: ilm-private/ct-logs-discovery-provider
+      image: ilm/ct-logs-discovery-provider
       cache-scope: ct-logs-discovery-provider
       # The Dockerfile builds the Go binary from the sources.
       pre-build: none
