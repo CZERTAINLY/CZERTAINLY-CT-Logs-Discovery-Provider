@@ -14,6 +14,13 @@ run-name: >-
   • ${{ inputs.head_repo }}@${{ inputs.head_branch }}
   • ${{ inputs.head_sha }}
 
+# One analysis per pull request at a time. Successive commits each dispatch
+# their own run, and they all report under the same Sonar pull-request key, so
+# without this an older run finishing last would overwrite the newer result.
+concurrency:
+  group: sonar-pr-${{ inputs.pr_number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   actions: read # download coverage + lint artifacts from the upstream Check PR run
