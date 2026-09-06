@@ -1,42 +1,45 @@
 name: Build
+
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
-  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  check:
-    if: github.event_name != 'push'
-    name: Check
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Setup Go
-        uses: actions/setup-go@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
-        with:
-          # Require: The version of golangci-lint to use.
-          version: v2.12.2
-      - name: Verify dependencies
-        run: go mod verify
-      - name: Build
-        run: go build -v ./...
-      - name: Run go vet
+          cache: true
+
+      - name: go vet
         run: go vet ./...
-      - name: Run tests
-        run: go test -race -vet=off ./...
-  build:
-    if: github.event_name != 'pull_request'
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+
+      - name: govulncheck
+        # Version is lock-file enforced: the tool directive in go.mod pins
+        # govulncheck and go.sum verifies it (S8545).
+        run: go tool govulncheck ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          fetch-depth: 0
+          name: coverage-report
+          path: coverage.out
+          if-no-files-found: ignore
