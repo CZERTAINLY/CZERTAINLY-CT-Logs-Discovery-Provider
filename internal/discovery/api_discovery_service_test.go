@@ -1,6 +1,20 @@
 package discovery
 
-import "testing"
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/db"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/sslmate"
+	"go.uber.org/zap"
+)
 
 // setMandatoryDatabaseEnv sets the variables config.Get treats as required, so
 // a test can read the SSLMate settings without tripping its fatal exit.
@@ -45,5 +59,163 @@ func TestNewSSLMateClientFallsBackToTheDefaultBaseURL(t *testing.T) {
 	}
 	if got != "https://api.certspotter.com" {
 		t.Errorf("server URL: got %q, want %q", got, "https://api.certspotter.com")
+	}
+}
+
+// fakeAssociateCall records one call to
+// fakeDiscoveryRepository.AssociateCertificatesToDiscovery.
+type fakeAssociateCall struct {
+	discovery    db.Discovery
+	certificates []*db.Certificate
+}
+
+// fakeDiscoveryRepository is an in-memory stand-in for *db.DiscoveryRepository
+// satisfying the discoveryRepository interface. It records the calls
+// DiscoveryCertificates makes and returns canned errors, so tests can drive
+// every branch of that method without a live database.
+type fakeDiscoveryRepository struct {
+	updateDiscoveryCalls []db.Discovery
+	updateDiscoveryErr   error
+
+	associateCalls []fakeAssociateCall
+	associateErr   error
+}
+
+func (f *fakeDiscoveryRepository) FindDiscoveryByUUID(uuid string) (*db.Discovery, error) {
+	return nil, errors.New("fakeDiscoveryRepository: FindDiscoveryByUUID not configured for this test")
+}
+
+func (f *fakeDiscoveryRepository) DeleteDiscovery(discovery *db.Discovery) error {
+	return errors.New("fakeDiscoveryRepository: DeleteDiscovery not configured for this test")
+}
+
+func (f *fakeDiscoveryRepository) CreateDiscovery(discovery *db.Discovery) error {
+	return errors.New("fakeDiscoveryRepository: CreateDiscovery not configured for this test")
+}
+
+func (f *fakeDiscoveryRepository) List(pagination db.Pagination, discovery *db.Discovery) (*db.Pagination, error) {
+	return nil, errors.New("fakeDiscoveryRepository: List not configured for this test")
+}
+
+func (f *fakeDiscoveryRepository) UpdateDiscovery(discovery *db.Discovery) error {
+	f.updateDiscoveryCalls = append(f.updateDiscoveryCalls, *discovery)
+	return f.updateDiscoveryErr
+}
+
+func (f *fakeDiscoveryRepository) AssociateCertificatesToDiscovery(discovery *db.Discovery, certificates ...*db.Certificate) error {
+	f.associateCalls = append(f.associateCalls, fakeAssociateCall{discovery: *discovery, certificates: certificates})
+	return f.associateErr
+}
+
+// newIssuancesServer starts an httptest server playing the role of the
+// SSLMate CT search API used by DiscoveryCertificates. It answers the first
+// request with issuances and every request after that with an empty page, so
+// the discovery loop stops paginating. It always succeeds on the first
+// attempt so the retry loop in DiscoveryCertificates - a 15 second base delay
+// - never engages; a test relying on that retry path would hang for minutes.
+func newIssuancesServer(t *testing.T, issuances []sslmate.IssuanceObject) *httptest.Server {
+	t.Helper()
+
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		page := issuances
+		if calls.Add(1) > 1 {
+			page = []sslmate.IssuanceObject{}
+		}
+		if err := json.NewEncoder(w).Encode(page); err != nil {
+			t.Errorf("encode issuances response: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestDiscoveryCertificatesCompletesWhenNoIssuancesAreFound(t *testing.T) {
+	setMandatoryDatabaseEnv(t)
+	server := newIssuancesServer(t, nil)
+	t.Setenv("SSLMATE_BASE_URL", server.URL)
+
+	repo := &fakeDiscoveryRepository{}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.DiscoveryCertificates(context.Background(), target, "example.com", "", false, false, time.Now().Add(-time.Hour), time.Now())
+
+	if target.Status != model.COMPLETED {
+		t.Fatalf("status: got %q, want %q", target.Status, model.COMPLETED)
+	}
+	if len(repo.associateCalls) != 0 {
+		t.Errorf("AssociateCertificatesToDiscovery calls: got %d, want 0", len(repo.associateCalls))
+	}
+	if len(repo.updateDiscoveryCalls) != 1 {
+		t.Fatalf("UpdateDiscovery calls: got %d, want 1", len(repo.updateDiscoveryCalls))
+	}
+	if got := repo.updateDiscoveryCalls[0].Status; got != model.COMPLETED {
+		t.Errorf("updated status: got %q, want %q", got, model.COMPLETED)
+	}
+}
+
+func TestDiscoveryCertificatesAssociatesDiscoveredCertificates(t *testing.T) {
+	setMandatoryDatabaseEnv(t)
+	issuance := sslmate.IssuanceObject{
+		Id:      "issuance-1",
+		CertDer: "certificate-der-bytes",
+		Issuer:  sslmate.IssuerObject{FriendlyName: "Example CA"},
+	}
+	server := newIssuancesServer(t, []sslmate.IssuanceObject{issuance})
+	t.Setenv("SSLMATE_BASE_URL", server.URL)
+
+	repo := &fakeDiscoveryRepository{}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.DiscoveryCertificates(context.Background(), target, "example.com", "", false, false, time.Now().Add(-time.Hour), time.Now())
+
+	if target.Status != model.COMPLETED {
+		t.Fatalf("status: got %q, want %q", target.Status, model.COMPLETED)
+	}
+	if len(repo.associateCalls) != 1 {
+		t.Fatalf("AssociateCertificatesToDiscovery calls: got %d, want 1", len(repo.associateCalls))
+	}
+	certs := repo.associateCalls[0].certificates
+	if len(certs) != 1 {
+		t.Fatalf("certificates in call: got %d, want 1", len(certs))
+	}
+	if certs[0].Base64Content != issuance.CertDer {
+		t.Errorf("certificate content: got %q, want %q", certs[0].Base64Content, issuance.CertDer)
+	}
+	if certs[0].UUID == "" {
+		t.Error("certificate UUID: got empty string, want a deterministic UUID")
+	}
+}
+
+func TestDiscoveryCertificatesFailsWhenAssociationErrors(t *testing.T) {
+	setMandatoryDatabaseEnv(t)
+	issuance := sslmate.IssuanceObject{
+		Id:      "issuance-1",
+		CertDer: "certificate-der-bytes",
+		Issuer:  sslmate.IssuerObject{FriendlyName: "Example CA"},
+	}
+	server := newIssuancesServer(t, []sslmate.IssuanceObject{issuance})
+	t.Setenv("SSLMATE_BASE_URL", server.URL)
+
+	repo := &fakeDiscoveryRepository{associateErr: errors.New("association failed")}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.DiscoveryCertificates(context.Background(), target, "example.com", "", false, false, time.Now().Add(-time.Hour), time.Now())
+
+	if target.Status != model.FAILED {
+		t.Fatalf("status: got %q, want %q", target.Status, model.FAILED)
+	}
+	if len(target.Meta) == 0 {
+		t.Error("expected failure metadata to be recorded on the discovery")
+	}
+	if len(repo.updateDiscoveryCalls) != 1 {
+		t.Fatalf("UpdateDiscovery calls: got %d, want 1", len(repo.updateDiscoveryCalls))
+	}
+	if got := repo.updateDiscoveryCalls[0].Status; got != model.FAILED {
+		t.Errorf("updated status: got %q, want %q", got, model.FAILED)
 	}
 }
