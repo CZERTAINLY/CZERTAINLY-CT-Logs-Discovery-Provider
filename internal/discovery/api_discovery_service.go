@@ -16,11 +16,24 @@ import (
 	"time"
 )
 
+// discoveryRepository is the subset of *db.DiscoveryRepository's methods that
+// DiscoveryAPIService calls. Depending on this interface instead of the
+// concrete repository type lets tests substitute a fake and exercise service
+// logic - including DiscoveryCertificates - without a live database.
+type discoveryRepository interface {
+	FindDiscoveryByUUID(uuid string) (*db.Discovery, error)
+	DeleteDiscovery(discovery *db.Discovery) error
+	CreateDiscovery(discovery *db.Discovery) error
+	List(pagination db.Pagination, discovery *db.Discovery) (*db.Pagination, error)
+	UpdateDiscovery(discovery *db.Discovery) error
+	AssociateCertificatesToDiscovery(discovery *db.Discovery, certificates ...*db.Certificate) error
+}
+
 // DiscoveryAPIService is a service that implements the logic for the DiscoveryAPIServicer
 // This service should implement the business logic for every endpoint for the DiscoveryAPI API.
 // Include any external packages or services that will be required by this service.
 type DiscoveryAPIService struct {
-	discoveryRepo *db.DiscoveryRepository
+	discoveryRepo discoveryRepository
 	log           *zap.Logger
 }
 
