@@ -13,7 +13,6 @@ import (
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/utils"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
-	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
@@ -98,7 +97,7 @@ func logMiddleware(next http.Handler) http.Handler {
 		correlationID := utils.GenerateRandomUUID()
 
 		ctx := context.Background()
-		ctx = zax.Set(ctx, []zap.Field{zap.String("correlation_id", correlationID)})
+		ctx = logger.WithFields(ctx, zap.String("correlation_id", correlationID))
 
 		r = r.WithContext(ctx)
 

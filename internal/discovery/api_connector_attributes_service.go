@@ -3,8 +3,8 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
-	"github.com/yuseferi/zax/v2"
 	"net/http"
 	"strings"
 
@@ -29,7 +29,7 @@ func NewConnectorAttributesAPIService(logger *zap.Logger) ConnectorAttributesAPI
 func (s *ConnectorAttributesAPIService) ListAttributeDefinitions(ctx context.Context, kind string) (model.ImplResponse, error) {
 	if !strings.EqualFold(kind, model.CONNECTOR_KIND) {
 		message := fmt.Sprintf("Unrecognized kind: %s", kind)
-		s.log.With(zax.Get(ctx)...).Info(message)
+		s.log.With(logger.Fields(ctx)...).Info(message)
 		return model.Response(http.StatusUnprocessableEntity, message), nil
 	}
 
@@ -55,7 +55,7 @@ func (s *ConnectorAttributesAPIService) ListAttributeDefinitions(ctx context.Con
 func (s *ConnectorAttributesAPIService) ValidateAttributes(ctx context.Context, kind string, requestAttributeDto []model.Attribute) (model.ImplResponse, error) {
 	if !strings.EqualFold(kind, model.CONNECTOR_KIND) {
 		message := fmt.Sprintf("Unrecognized kind: %s", kind)
-		s.log.With(zax.Get(ctx)...).Info(message)
+		s.log.With(logger.Fields(ctx)...).Info(message)
 		return model.Response(http.StatusUnprocessableEntity, message), nil
 	}
 

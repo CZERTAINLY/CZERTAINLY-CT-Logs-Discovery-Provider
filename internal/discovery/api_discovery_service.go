@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/config"
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/db"
+	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/logger"
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/model"
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/sslmate"
 	"github.com/OmniTrustILM/ct-logs-discovery-provider/internal/utils"
-	"github.com/yuseferi/zax/v2"
 	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
@@ -52,7 +52,7 @@ func (s *DiscoveryAPIService) DeleteDiscovery(ctx context.Context, uuid string) 
 		return model.Response(http.StatusNotFound, model.ErrorMessageDto{Message: "Discovery " + uuid + " not found."}), nil
 	}
 
-	s.log.With(zax.Get(ctx)...).Info("Deleting discovery", zap.String("discovery_uuid", discovery.UUID))
+	s.log.With(logger.Fields(ctx)...).Info("Deleting discovery", zap.String("discovery_uuid", discovery.UUID))
 	err = s.discoveryRepo.DeleteDiscovery(discovery)
 	if err != nil {
 		return model.Response(http.StatusInternalServerError, model.ErrorMessageDto{Message: "Unable to delete discovery " + discovery.UUID + ", " + err.Error()}), nil
@@ -82,7 +82,7 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 	domainData := ""
 	domain := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_DOMAIN_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
 	if domain.GetContent()[0] == nil {
-		s.log.With(zax.Get(ctx)...).Info("Domain attribute not found")
+		s.log.With(logger.Fields(ctx)...).Info("Domain attribute not found")
 	} else {
 		domainData = domain.GetContent()[0].GetData().(string)
 	}
@@ -91,7 +91,7 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 	if model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_API_KEY_UUID, discoveryRequestDto.Attributes) != nil {
 		apiKey := model.GetAttributeFromArrayByUUID(model.DISCOVERY_DATA_ATTRIBUTE_API_KEY_UUID, discoveryRequestDto.Attributes).(model.DataAttribute)
 		if apiKey.GetContent()[0].(model.CredentialAttributeContent).GetData().(model.CredentialAttributeContentData).Kind != "ApiKey" {
-			s.log.With(zax.Get(ctx)...).Info("Incompatible credential type, ApiKey expected", zap.String("kind", apiKey.GetContent()[0].(model.CredentialAttributeContent).GetData().(model.CredentialAttributeContentData).Kind))
+			s.log.With(logger.Fields(ctx)...).Info("Incompatible credential type, ApiKey expected", zap.String("kind", apiKey.GetContent()[0].(model.CredentialAttributeContent).GetData().(model.CredentialAttributeContentData).Kind))
 		} else {
 			apiKeyData = model.GetApiKeyFromAttribute(apiKey)
 		}
@@ -130,7 +130,7 @@ func (s *DiscoveryAPIService) DiscoverCertificate(ctx context.Context, discovery
 		return model.Response(http.StatusNotFound, model.ErrorMessageDto{Message: "Unable to create discovery " + discovery.UUID + ", " + err.Error()}), nil
 	}
 
-	s.log.With(zax.Get(ctx)...).Info("Starting discovery of certificates", zap.String("discovery_uuid", discovery.UUID), zap.String("discovery_name", discovery.Name))
+	s.log.With(logger.Fields(ctx)...).Info("Starting discovery of certificates", zap.String("discovery_uuid", discovery.UUID), zap.String("discovery_name", discovery.Name))
 	go s.DiscoveryCertificates(ctx, discovery, domainData, apiKeyData, includeSubdomains, matchWildcards, discoveredFrom, discoveredBefore)
 
 	return model.Response(http.StatusOK, response), nil
@@ -211,18 +211,18 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			}
 
 			// Log the error and prepare for the next retry
-			s.log.With(zax.Get(ctx)...).Error("Attempt " + strconv.Itoa(attempt+1) + " failed: " + err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
+			s.log.With(logger.Fields(ctx)...).Error("Attempt " + strconv.Itoa(attempt+1) + " failed: " + err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
 
 			// Introduce a random delay before retrying
 			waitTime := baseDelay * time.Duration(1<<attempt)             // Exponential backoff
 			waitTime += time.Duration(rand.Intn(1000)) * time.Millisecond // Add jitter
 			// Log the wait time in seconds
-			s.log.With(zax.Get(ctx)...).Info("Waiting for " + waitTime.String() + " before retrying")
+			s.log.With(logger.Fields(ctx)...).Info("Waiting for " + waitTime.String() + " before retrying")
 			time.Sleep(waitTime)
 		}
 
 		if err != nil {
-			s.log.With(zax.Get(ctx)...).Error(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
+			s.log.With(logger.Fields(ctx)...).Error(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
 			discovery.Status = model.FAILED
 			meta := model.CreateFailureReasonMetadataAttribute(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
 			metaAttributes := []model.MetadataAttribute{
@@ -234,7 +234,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			}
 			err = s.discoveryRepo.UpdateDiscovery(discovery)
 			if err != nil {
-				s.log.With(zax.Get(ctx)...).Error(err.Error())
+				s.log.With(logger.Fields(ctx)...).Error(err.Error())
 			}
 			return
 		}
@@ -243,7 +243,6 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			var certificateKeys []*db.Certificate
 			for _, issuance := range *response {
 				certDer := issuance.GetCertDer()
-				// s.log.With(zax.Get(ctx)...).Debug("Issuance ID: %s, CertDer: %s", zap.String("id", issuance.GetId()), zap.String("cert_der", certDer))
 				friendlyNameMeta := model.CreateSSLMateFriendlyNameMetadataAttribute(issuance.GetIssuer().FriendlyName)
 				meta := []model.MetadataAttribute{
 					friendlyNameMeta,
@@ -267,7 +266,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			err = s.discoveryRepo.AssociateCertificatesToDiscovery(discovery, certificateKeys...)
 			if err != nil {
 				discovery.Status = model.FAILED
-				s.log.With(zax.Get(ctx)...).Error(err.Error())
+				s.log.With(logger.Fields(ctx)...).Error(err.Error())
 				meta := model.CreateFailureReasonMetadataAttribute(err.Error())
 				metaAttributes := []model.MetadataAttribute{
 					meta,
@@ -278,7 +277,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 				}
 				err = s.discoveryRepo.UpdateDiscovery(discovery)
 				if err != nil {
-					s.log.With(zax.Get(ctx)...).Error(err.Error())
+					s.log.With(logger.Fields(ctx)...).Error(err.Error())
 				}
 				return
 			}
@@ -286,7 +285,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			lastIssuance := (*response)[len(*response)-1]
 			after = lastIssuance.GetId()
 		} else {
-			s.log.With(zax.Get(ctx)...).Info("No additional issuance objects found.")
+			s.log.With(logger.Fields(ctx)...).Info("No additional issuance objects found.")
 			break
 		}
 	}
@@ -296,7 +295,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	err := s.discoveryRepo.UpdateDiscovery(discovery)
 	if err != nil {
 		discovery.Status = model.FAILED
-		s.log.With(zax.Get(ctx)...).Error(err.Error())
+		s.log.With(logger.Fields(ctx)...).Error(err.Error())
 		meta := model.CreateFailureReasonMetadataAttribute(err.Error())
 		metaAttributes := []model.MetadataAttribute{
 			meta,
@@ -307,10 +306,10 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 		}
 		err = s.discoveryRepo.UpdateDiscovery(discovery)
 		if err != nil {
-			s.log.With(zax.Get(ctx)...).Error(err.Error())
+			s.log.With(logger.Fields(ctx)...).Error(err.Error())
 		}
 		return
 	}
 
-	s.log.With(zax.Get(ctx)...).Info("Discovery completed", zap.String("discovery_uuid", discovery.UUID), zap.Int("total_certificates", len(discovery.Certificates)))
+	s.log.With(logger.Fields(ctx)...).Info("Discovery completed", zap.String("discovery_uuid", discovery.UUID), zap.Int("total_certificates", len(discovery.Certificates)))
 }
