@@ -29,6 +29,21 @@ type discoveryRepository interface {
 	AssociateCertificatesToDiscovery(discovery *db.Discovery, certificates ...*db.Certificate) error
 }
 
+// failDiscovery marks the discovery as failed, records the reason in its
+// metadata, and persists it.
+func (s *DiscoveryAPIService) failDiscovery(ctx context.Context, discovery *db.Discovery, reason string) {
+	s.log.With(logger.Fields(ctx)...).Error(reason)
+	discovery.Status = model.FAILED
+
+	if err := discovery.SetMeta([]model.MetadataAttribute{model.CreateFailureReasonMetadataAttribute(reason)}); err != nil {
+		return
+	}
+
+	if err := s.discoveryRepo.UpdateDiscovery(discovery); err != nil {
+		s.log.With(logger.Fields(ctx)...).Error(err.Error())
+	}
+}
+
 // DiscoveryAPIService is a service that implements the logic for the DiscoveryAPIServicer
 // This service should implement the business logic for every endpoint for the DiscoveryAPI API.
 // Include any external packages or services that will be required by this service.
@@ -222,20 +237,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 		}
 
 		if err != nil {
-			s.log.With(logger.Fields(ctx)...).Error(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
-			discovery.Status = model.FAILED
-			meta := model.CreateFailureReasonMetadataAttribute(err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
-			metaAttributes := []model.MetadataAttribute{
-				meta,
-			}
-			err := discovery.SetMeta(metaAttributes)
-			if err != nil {
-				return
-			}
-			err = s.discoveryRepo.UpdateDiscovery(discovery)
-			if err != nil {
-				s.log.With(logger.Fields(ctx)...).Error(err.Error())
-			}
+			s.failDiscovery(ctx, discovery, err.(*sslmate.GenericOpenAPIError).Model().(sslmate.ErrorObject).Message)
 			return
 		}
 
@@ -265,20 +267,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 			}
 			err = s.discoveryRepo.AssociateCertificatesToDiscovery(discovery, certificateKeys...)
 			if err != nil {
-				discovery.Status = model.FAILED
-				s.log.With(logger.Fields(ctx)...).Error(err.Error())
-				meta := model.CreateFailureReasonMetadataAttribute(err.Error())
-				metaAttributes := []model.MetadataAttribute{
-					meta,
-				}
-				err := discovery.SetMeta(metaAttributes)
-				if err != nil {
-					return
-				}
-				err = s.discoveryRepo.UpdateDiscovery(discovery)
-				if err != nil {
-					s.log.With(logger.Fields(ctx)...).Error(err.Error())
-				}
+				s.failDiscovery(ctx, discovery, err.Error())
 				return
 			}
 			// get the last issuance object
@@ -294,20 +283,7 @@ func (s *DiscoveryAPIService) DiscoveryCertificates(ctx context.Context, discove
 	discovery.Status = model.COMPLETED
 	err := s.discoveryRepo.UpdateDiscovery(discovery)
 	if err != nil {
-		discovery.Status = model.FAILED
-		s.log.With(logger.Fields(ctx)...).Error(err.Error())
-		meta := model.CreateFailureReasonMetadataAttribute(err.Error())
-		metaAttributes := []model.MetadataAttribute{
-			meta,
-		}
-		err := discovery.SetMeta(metaAttributes)
-		if err != nil {
-			return
-		}
-		err = s.discoveryRepo.UpdateDiscovery(discovery)
-		if err != nil {
-			s.log.With(logger.Fields(ctx)...).Error(err.Error())
-		}
+		s.failDiscovery(ctx, discovery, err.Error())
 		return
 	}
 

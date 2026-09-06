@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -217,5 +218,41 @@ func TestDiscoveryCertificatesFailsWhenAssociationErrors(t *testing.T) {
 	}
 	if got := repo.updateDiscoveryCalls[0].Status; got != model.FAILED {
 		t.Errorf("updated status: got %q, want %q", got, model.FAILED)
+	}
+}
+
+func TestFailDiscoveryRecordsTheReasonAndPersistsIt(t *testing.T) {
+	repo := &fakeDiscoveryRepository{}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.failDiscovery(context.Background(), target, "the upstream API rejected the request")
+
+	if target.Status != model.FAILED {
+		t.Fatalf("status: got %q, want %q", target.Status, model.FAILED)
+	}
+	if !strings.Contains(string(target.Meta), "the upstream API rejected the request") {
+		t.Errorf("expected the reason in the metadata, got %q", string(target.Meta))
+	}
+	if len(repo.updateDiscoveryCalls) != 1 {
+		t.Fatalf("UpdateDiscovery calls: got %d, want 1", len(repo.updateDiscoveryCalls))
+	}
+	if got := repo.updateDiscoveryCalls[0].Status; got != model.FAILED {
+		t.Errorf("persisted status: got %q, want %q", got, model.FAILED)
+	}
+}
+
+func TestFailDiscoveryStillMarksTheDiscoveryWhenPersistingFails(t *testing.T) {
+	repo := &fakeDiscoveryRepository{updateDiscoveryErr: errors.New("database unavailable")}
+	svc := &DiscoveryAPIService{discoveryRepo: repo, log: zap.NewNop()}
+	target := &db.Discovery{UUID: "discovery-uuid", Name: "example.com"}
+
+	svc.failDiscovery(context.Background(), target, "discovery failed")
+
+	if target.Status != model.FAILED {
+		t.Errorf("status: got %q, want %q", target.Status, model.FAILED)
+	}
+	if len(repo.updateDiscoveryCalls) != 1 {
+		t.Errorf("UpdateDiscovery calls: got %d, want 1", len(repo.updateDiscoveryCalls))
 	}
 }
